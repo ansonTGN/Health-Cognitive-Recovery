@@ -1,7 +1,7 @@
 // FILE: src/domain/models.rs
 use serde::{Deserialize, Serialize};
 use secrecy::SecretString;
-use utoipa::ToSchema;
+use utoipa::{ToSchema, IntoParams}; 
 use validator::Validate;
 
 // --- CONFIGURACIÓN (Sin cambios significativos) ---
@@ -159,4 +159,19 @@ pub enum EntityCategory {
     CommunityResource,
     Concept,
     Unknown(String),
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub enum ExportFormat {
+    #[serde(rename = "jsonld")]
+    JsonLd,
+    #[serde(rename = "turtle")]
+    Turtle,
+    #[serde(rename = "graphml")]
+    GraphML,
+}
+
+#[derive(Debug, Deserialize, ToSchema, IntoParams)] 
+pub struct ExportParams {
+    pub format: Option<ExportFormat>,
 }

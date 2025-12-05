@@ -143,7 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(ui::render_login).post(ui::authenticate))
         .route("/dashboard", get(ui::render_dashboard_guarded))
         .route("/logout", get(|| async { Redirect::to("/").into_response() }))
-        .route("/api/export/jsonld", get(interface::handlers::export::export_jsonld))
+        .route("/api/export", get(interface::handlers::export::export_knowledge_graph))
         
         // Capas
         .layer(TraceLayer::new_for_http())

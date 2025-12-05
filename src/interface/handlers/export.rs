@@ -1,70 +1,262 @@
 // FILE: src/interface/handlers/export.rs
-use axum::{Json, extract::State};
+
+use axum::{
+    extract::{State, Query},
+    response::{IntoResponse, Response},
+    http::header,
+};
 use std::sync::Arc;
-use serde_json::{json, Value};
-use crate::domain::errors::AppError;
+use serde_json::json;
+use xml::writer::{EmitterConfig, XmlEvent};
+use std::io::Cursor;
+
+use crate::domain::{
+    errors::AppError,
+    models::{ExportParams, ExportFormat, ExportedGraph},
+};
 use super::admin::AppState;
 
+/// Endpoint unificado de exportación
 #[utoipa::path(
     get,
-    path = "/api/export/jsonld",
+    path = "/api/export",
+    params(ExportParams),
     responses(
-        (status = 200, description = "Export Knowledge Graph as JSON-LD", body = Value)
+        (status = 200, description = "Knowledge Graph Exported"),
+        (status = 500, description = "Internal error")
     ),
     tag = "export"
 )]
-pub async fn export_jsonld(
+pub async fn export_knowledge_graph(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Value>, AppError> {
+    Query(params): Query<ExportParams>,
+) -> Result<Response, AppError> {
     
+    // 1. Obtener datos crudos de Neo4j
     let graph = state.repo.export_full_knowledge_graph().await?;
     
-    // Transformación a JSON-LD (Schema.org vocabulary mapping where possible)
+    // 2. Determinar formato (por defecto JSON-LD)
+    let format = params.format.unwrap_or(ExportFormat::JsonLd);
+
+    // 3. Transmutar al formato solicitado
+    match format {
+        ExportFormat::JsonLd => export_jsonld(graph),
+        ExportFormat::Turtle => export_turtle(graph),
+        ExportFormat::GraphML => export_graphml(graph),
+    }
+}
+
+// --- ESTRATEGIA 1: JSON-LD (Web Semántica / APIs) ---
+fn export_jsonld(graph: ExportedGraph) -> Result<Response, AppError> {
     let context = json!({
         "@context": {
             "schema": "http://schema.org/",
             "mhealth": "http://ontologies.lamuralla.org/mental-health#",
-            "Person": "schema:Person",
-            "Condition": "schema:MedicalCondition",
-            "Intervention": "schema:TherapeuticProcedure",
-            "CommunityResource": "schema:Organization",
+            "Person": "mhealth:Person",
+            "Condition": "mhealth:Condition",
+            "Intervention": "mhealth:Intervention",
+            "CommunityResource": "mhealth:CommunityResource",
+            "Outcome": "mhealth:Outcome",
+            "Concept": "mhealth:Concept",
             "name": "schema:name",
-            "category": "@type"
+            "category": "@type",
+            // Definición genérica para relaciones
+            "relations": { "@id": "mhealth:relations", "@type": "@id" }
         }
     });
 
-    let mut graph_nodes: Vec<Value> = Vec::new();
+    let mut nodes_map = serde_json::Map::new();
 
-    // Mapeo de Entidades
-    for node in graph.nodes {
-        let type_uri = match node.category.as_str() {
-            "Person" => "mhealth:Person",
-            "Condition" => "mhealth:Condition",
-            "Intervention" => "mhealth:Intervention",
-            _ => "schema:Thing"
-        };
-
-        graph_nodes.push(json!({
-            "@id": format!("mhealth:{}", node.name.replace(" ", "_")),
+    // Crear Nodos
+    for node in &graph.nodes {
+        let id = format!("mhealth:{}", sanitize_uri(&node.name));
+        let type_uri = format!("mhealth:{}", node.category);
+        
+        let node_json = json!({
+            "@id": id,
             "@type": type_uri,
             "name": node.name,
-            "category": node.category
+            "category": node.category 
+        });
+        
+        nodes_map.insert(id, node_json);
+    }
+
+    // Incrustar Relaciones 
+    // Usamos una estructura plana con una propiedad 'meta:topology' para facilitar el parsing
+    let mut edges_json = Vec::new();
+    for edge in &graph.edges {
+        edges_json.push(json!({
+            "source": format!("mhealth:{}", sanitize_uri(&edge.source)),
+            "target": format!("mhealth:{}", sanitize_uri(&edge.target)),
+            "relation": edge.relation_type
         }));
     }
 
-    // Mapeo de Relaciones (Reificación simple o propiedades de objeto)
-    // En JSON-LD simple, las relaciones suelen anidarse, pero en grafos planos usamos @graph
-    // Aquí exportamos una estructura plana compatible con herramientas de visualización RDF.
-    
-    // Para simplificar, añadimos las relaciones como objetos independientes o propiedades
-    // Para este caso, añadiremos un campo 'relations' customizado ya que JSON-LD estricto
-    // requiere modificar los nodos originales para incluir las aristas como propiedades.
-    
-    let json_output = json!({
+    let final_json = json!({
         "@context": context["@context"],
-        "@graph": graph_nodes,
-        "meta:edges": graph.edges // Extensión no estándar para facilitar parsing simple
+        "@graph": nodes_map.values().collect::<Vec<_>>(),
+        "meta:topology": edges_json 
     });
 
-    Ok(Json(json_output))
+    let body = serde_json::to_string_pretty(&final_json)
+        .map_err(|e| AppError::ParseError(e.to_string()))?;
+
+    Ok((
+        [(header::CONTENT_TYPE, "application/ld+json"), 
+         (header::CONTENT_DISPOSITION, "attachment; filename=\"ontology.jsonld\"")],
+        body
+    ).into_response())
+}
+
+// --- ESTRATEGIA 2: RDF / TURTLE (Estándar Académico / Protégé) ---
+fn export_turtle(graph: ExportedGraph) -> Result<Response, AppError> {
+    let mut ttl = String::new();
+
+    // Prefijos
+    ttl.push_str("@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n");
+    ttl.push_str("@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n");
+    ttl.push_str("@prefix mhealth: <http://ontologies.lamuralla.org/mental-health#> .\n\n");
+
+    ttl.push_str(&format!("# Generated by LaMuralla Engine at {}\n\n", graph.generated_at));
+
+    // Definición de Clases (Ontología base implícita)
+    ttl.push_str("# --- Ontology Classes ---\n");
+    let categories = ["Person", "Condition", "Intervention", "Outcome", "CommunityResource", "Concept"];
+    for cat in categories {
+        ttl.push_str(&format!("mhealth:{} a rdfs:Class .\n", cat));
+    }
+    ttl.push_str("\n# --- Instances ---\n");
+
+    // Instancias (Nodos)
+    for node in &graph.nodes {
+        let subject = format!("mhealth:{}", sanitize_uri(&node.name));
+        let type_class = format!("mhealth:{}", node.category);
+        
+        // Triple: mhealth:Juan_Perez a mhealth:Person ; rdfs:label "Juan Perez" .
+        ttl.push_str(&format!("{} a {} ;\n", subject, type_class));
+        ttl.push_str(&format!("    rdfs:label \"{}\" .\n", node.name));
+    }
+
+    ttl.push_str("\n# --- Relationships ---\n");
+
+    // Propiedades (Aristas)
+    for edge in &graph.edges {
+        let source = format!("mhealth:{}", sanitize_uri(&edge.source));
+        let target = format!("mhealth:{}", sanitize_uri(&edge.target));
+        // Convertir relación a camelCase para predicado válido RDF (ej. PARTICIPATES_IN -> participatesIn)
+        let predicate = format!("mhealth:{}", to_camel_case(&edge.relation_type));
+
+        ttl.push_str(&format!("{} {} {} .\n", source, predicate, target));
+    }
+
+    Ok((
+        [(header::CONTENT_TYPE, "text/turtle"), 
+         (header::CONTENT_DISPOSITION, "attachment; filename=\"ontology.ttl\"")],
+        ttl
+    ).into_response())
+}
+
+// --- ESTRATEGIA 3: GraphML (Gephi / Cytoscape) ---
+fn export_graphml(graph: ExportedGraph) -> Result<Response, AppError> {
+    let mut writer = Cursor::new(Vec::new());
+    let config = EmitterConfig::new().perform_indent(true);
+    let mut xml = config.create_writer(&mut writer);
+
+    // <graphml>
+    xml.write(XmlEvent::start_element("graphml")
+        .attr("xmlns", "http://graphml.graphdrawing.org/xmlns")
+        .attr("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
+    ).map_err(|e| AppError::ParseError(e.to_string()))?;
+
+    // Definición de Claves (Metadatos)
+    // <key id="d0" for="node" attr.name="category" attr.type="string"/>
+    xml.write(XmlEvent::start_element("key").attr("id", "d0").attr("for", "node").attr("attr.name", "category").attr("attr.type", "string")).ok();
+    // <key id="d1" for="edge" attr.name="label" attr.type="string"/>
+    xml.write(XmlEvent::start_element("key").attr("id", "d1").attr("for", "edge").attr("attr.name", "label").attr("attr.type", "string")).ok();
+
+    // <graph id="G" edgedefault="directed">
+    xml.write(XmlEvent::start_element("graph").attr("id", "G").attr("edgedefault", "directed")).ok();
+
+    // Nodos
+    for node in &graph.nodes {
+        // <node id="...">
+        let id = sanitize_uri(&node.name); 
+        xml.write(XmlEvent::start_element("node").attr("id", &id)).ok();
+        
+        // <data key="d0">Category</data>
+        xml.write(XmlEvent::start_element("data").attr("key", "d0")).ok();
+        xml.write(XmlEvent::characters(&node.category)).ok();
+        xml.write(XmlEvent::end_element()).ok(); // end data
+
+        xml.write(XmlEvent::end_element()).ok(); // end node
+    }
+
+    // Aristas
+    for (i, edge) in graph.edges.iter().enumerate() {
+        let source = sanitize_uri(&edge.source);
+        let target = sanitize_uri(&edge.target);
+        let edge_id = format!("e{}", i);
+
+        // <edge id="..." source="..." target="...">
+        xml.write(XmlEvent::start_element("edge")
+            .attr("id", &edge_id)
+            .attr("source", &source)
+            .attr("target", &target)
+        ).ok();
+
+        // <data key="d1">RELATION_TYPE</data>
+        xml.write(XmlEvent::start_element("data").attr("key", "d1")).ok();
+        xml.write(XmlEvent::characters(&edge.relation_type)).ok();
+        xml.write(XmlEvent::end_element()).ok();
+
+        xml.write(XmlEvent::end_element()).ok(); // end edge
+    }
+
+    xml.write(XmlEvent::end_element()).ok(); // end graph
+    xml.write(XmlEvent::end_element()).ok(); // end graphml
+
+    let result_string = String::from_utf8(writer.into_inner())
+        .map_err(|e| AppError::ParseError(e.to_string()))?;
+
+    Ok((
+        [(header::CONTENT_TYPE, "application/xml"), 
+         (header::CONTENT_DISPOSITION, "attachment; filename=\"network.graphml\"")],
+        result_string
+    ).into_response())
+}
+
+// --- Utils ---
+
+fn sanitize_uri(input: &str) -> String {
+    input.trim()
+        .replace(" ", "_")
+        .replace("\"", "")
+        .replace("<", "")
+        .replace(">", "")
+        .replace("'", "")
+}
+
+/// Convierte "PARTICIPATES_IN" o "related_to" en "participatesIn"
+/// Corrige el error previo de iteración sobre chars.
+fn to_camel_case(s: &str) -> String {
+    let parts: Vec<&str> = s.split(|c| c == '_' || c == ' ').collect();
+    
+    if parts.is_empty() {
+        return String::new();
+    }
+
+    // Primera palabra en minúscula
+    let mut result = parts[0].to_lowercase();
+
+    // Palabras subsiguientes con Capitalización
+    for part in parts.iter().skip(1) {
+        if !part.is_empty() {
+            let (first, rest) = part.split_at(1);
+            result.push_str(&first.to_uppercase());
+            result.push_str(&rest.to_lowercase());
+        }
+    }
+    
+    result
 }
