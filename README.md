@@ -1,8 +1,4 @@
-Aquí tienes el `README.md` profesional, estructurado en tres idiomas y diseñado específicamente para el contexto de la ONG y el código refactorizado.
-
----
-
-# 🧠 LaMuralla Health: Cognitive Recovery Engine
+# LaMuralla Health: Cognitive Recovery Engine
 
 ![Rust](https://img.shields.io/badge/Core-Rust_1.80+-orange?style=for-the-badge&logo=rust)
 ![Neo4j](https://img.shields.io/badge/Graph_DB-Neo4j_5+-008CC1?style=for-the-badge&logo=neo4j&logoColor=white)
