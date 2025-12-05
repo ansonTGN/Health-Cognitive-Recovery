@@ -1,0 +1,698 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* --- Layout Split-Screen Profesional --- */
+    body { overflow: hidden; background: #0f172a; }
+    
+    .app-container {
+        display: flex;
+        height: 100vh;
+        padding-top: 50px; /* Espacio para navbar */
+    }
+
+    /* PANE IZQUIERDO: GRAFO (60%) */
+    .pane-graph {
+        flex: 6;
+        background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        position: relative;
+        border-right: 1px solid #334155;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* PANE DERECHO: INTERACCIÓN (40%) */
+    .pane-sidebar {
+        flex: 4;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        box-shadow: -5px 0 25px rgba(0,0,0,0.2);
+        z-index: 20;
+        height: 100%; 
+    }
+
+    /* --- Navbar --- */
+    .navbar-glass {
+        height: 50px;
+        background: #0f172a;
+        border-bottom: 1px solid #334155;
+        z-index: 50;
+    }
+    .brand-text { font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; }
+
+    /* --- Graph HUD (Updated for Ontology) --- */
+    .graph-hud {
+        position: absolute;
+        top: 20px; left: 20px;
+        background: rgba(15, 23, 42, 0.90);
+        backdrop-filter: blur(8px);
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #e2e8f0;
+        font-size: 0.75rem;
+        user-select: none;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        z-index: 10;
+        width: 200px;
+    }
+
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+
+    /* --- Tabs Styling --- */
+    .nav-tabs-custom .nav-link {
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 1rem;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }
+    .nav-tabs-custom .nav-link:hover { color: #334155; background: rgba(0,0,0,0.02); }
+    .nav-tabs-custom .nav-link.active {
+        color: #3b82f6;
+        background: transparent;
+        border-bottom-color: #3b82f6;
+    }
+
+    .tab-content {
+        flex: 1; 
+        overflow: hidden; 
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .tab-pane {
+        height: 100%; 
+        overflow-y: auto; 
+        display: none; 
+        flex-direction: column;
+    }
+    
+    .tab-pane.active { display: flex; }
+
+    /* --- Chat UI --- */
+    .chat-history {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+        background: #f1f5f9;
+        scroll-behavior: smooth;
+    }
+
+    .message-card { margin-bottom: 1.5rem; animation: fadeIn 0.3s ease-out; }
+    
+    .message-user {
+        background: #3b82f6; color: white;
+        padding: 1rem 1.25rem;
+        border-radius: 16px 16px 2px 16px;
+        margin-left: 3rem;
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.25);
+    }
+
+    .message-ai {
+        background: white;
+        border-left: 4px solid #6366f1;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-right: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        color: #334155;
+    }
+
+    /* Citation Badge */
+    .citation-badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 20px; height: 20px;
+        background: #eff6ff; color: #2563eb;
+        border-radius: 50%; font-size: 10px; font-weight: bold;
+        margin: 0 2px; cursor: pointer;
+        border: 1px solid #bfdbfe; transition: all 0.2s; vertical-align: super;
+    }
+    .citation-badge:hover { background: #2563eb; color: white; transform: scale(1.2); }
+    
+    /* Markdown Styles */
+    .md-content p { margin-bottom: 0.8rem; line-height: 1.6; }
+    .md-content pre { 
+        background: #1e293b; color: #f8fafc; 
+        padding: 1rem; border-radius: 8px; 
+        overflow-x: auto; font-size: 0.85em; font-family: 'JetBrains Mono', monospace;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark navbar-glass fixed-top px-3 d-flex justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+        <i class="fa-solid fa-heart-pulse text-primary"></i>
+        <span class="brand-text fw-bold text-white">LaMuralla <span class="opacity-50 fw-light">Mental Health Core</span></span>
+    </div>
+    <div class="d-flex gap-3 text-xs text-muted">
+        <span><i class="fa-solid fa-server me-1"></i> {{ config.model_name }}</span>
+        <a href="/logout" class="text-secondary hover-text-white transition"><i class="fa-solid fa-power-off"></i></a>
+    </div>
+</nav>
+
+<!-- MAIN CONTAINER -->
+<div class="app-container">
+    
+    <!-- LEFT: GRAPH ENGINE -->
+    <div class="pane-graph">
+        <!-- HUD Overlay (Specific Ontology) -->
+        <div class="graph-hud">
+            <div class="mb-2 fw-bold text-uppercase tracking-wider opacity-75 text-xs border-bottom border-secondary pb-1">Ontología de Recuperación</div>
+            
+            <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span> <strong>Person</strong> <span class="opacity-50 ms-1">(Usuario/Pro)</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> <strong>Condition</strong> <span class="opacity-50 ms-1">(Malestar)</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> <strong>Intervention</strong> <span class="opacity-50 ms-1">(Taller)</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6;"></span> <strong>Outcome</strong> <span class="opacity-50 ms-1">(Logro)</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> <strong>Resource</strong> <span class="opacity-50 ms-1">(Club/CAP)</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> <strong>Concept</strong> <span class="opacity-50 ms-1">(Idea)</span></div>
+            
+            <hr class="border-secondary opacity-25 my-2">
+            <div class="text-xs text-muted opacity-75">
+                <i class="fa-solid fa-mouse me-1"></i> Doble clic: Focalizar nodo
+            </div>
+        </div>
+
+        <!-- Vis.js Container -->
+        <div id="network-container" style="width: 100%; height: 100%;"></div>
+        
+        <!-- Controls -->
+        <div class="position-absolute bottom-0 end-0 p-3 d-flex gap-2">
+            <button class="btn btn-dark btn-sm border border-secondary" onclick="network.fit({animation:true})" title="Centrar">
+                <i class="fa-solid fa-compress"></i>
+            </button>
+            <button class="btn btn-dark btn-sm border border-secondary" onclick="reloadGraph()" title="Recargar">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- RIGHT: WORKSTATION -->
+    <div class="pane-sidebar">
+        <!-- Tabs Header -->
+        <ul class="nav nav-tabs nav-tabs-custom px-3 bg-white border-bottom" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-chat">Asistente</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ingest">Datos</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-details">Detalles</button></li>
+        </ul>
+
+        <!-- Tabs Content -->
+        <div class="tab-content">
+            
+            <!-- 1. CHAT TAB -->
+            <div class="tab-pane fade show active" id="tab-chat">
+                <div id="chatArea" class="chat-history">
+                    <div class="message-card message-ai">
+                        <div class="d-flex align-items-center gap-2 mb-2 border-bottom pb-2 border-light">
+                            <i class="fa-solid fa-robot text-primary"></i>
+                            <span class="fw-bold text-xs text-uppercase tracking-wide text-muted">La Muralla</span>
+                        </div>
+                        <div class="md-content text-sm">
+                            Hola. Soy tu especialista en Salud Mental Comunitaria. Puedo analizar casos, sugerir intervenciones o encontrar patrones de recuperación en tus documentos.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-3 bg-white border-top">
+                    <div class="position-relative">
+                        <textarea id="userPrompt" class="form-control ps-3 pe-5 py-3" 
+                            rows="2" placeholder="Ej: ¿Qué actividades promueven la autoestima?" style="resize: none; border-radius: 12px;"
+                            onkeypress="handleEnter(event)"></textarea>
+                        <button class="btn btn-primary position-absolute bottom-0 end-0 m-2 rounded-circle shadow-sm" 
+                            style="width: 36px; height: 36px;" onclick="sendChat()">
+                            <i class="fa-solid fa-paper-plane fa-sm"></i>
+                        </button>
+                    </div>
+                    <div class="text-xs text-muted text-center mt-2 opacity-50">Shift + Enter para nueva línea</div>
+                </div>
+            </div>
+
+            <!-- 2. INGEST & TOOLS TAB -->
+            <div class="tab-pane fade p-4" id="tab-ingest">
+                <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-database me-2"></i>Ingesta de Conocimiento</h6>
+                
+                <div class="card border-0 bg-light mb-3 shadow-sm">
+                    <div class="card-body">
+                        <label class="text-xs fw-bold text-muted mb-2">TEXTO CLÍNICO / SOCIAL</label>
+                        <textarea id="ingestContent" class="form-control mb-3 text-sm border-0 shadow-inner" rows="4" placeholder="Pega aquí notas de evolución, memorias de actividades, etc."></textarea>
+                        
+                        <label class="text-xs fw-bold text-muted mb-2">O SUBIR DOCUMENTO (PDF/DOCX)</label>
+                        <input type="file" id="ingestFile" class="form-control form-control-sm mb-3">
+                        
+                        <button onclick="startIngestion()" id="btnIngest" class="btn btn-dark w-100 btn-sm fw-bold">
+                            <i class="fa-solid fa-upload me-2"></i>PROCESAR DOCUMENTO
+                        </button>
+                    </div>
+                </div>
+
+                <div id="progressArea" class="d-none">
+                    <div class="progress mb-2" style="height: 4px;">
+                        <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                    </div>
+                    <div id="progressLog" class="font-mono text-xs text-muted p-2 bg-white border rounded" style="max-height: 100px; overflow-y: auto;"></div>
+                </div>
+
+                <hr class="my-4">
+                
+                <div class="row g-2">
+                    <!-- Inference -->
+                    <div class="col-6">
+                         <div class="p-3 bg-warning bg-opacity-10 rounded border border-warning border-opacity-25 h-100">
+                            <h6 class="text-xs fw-bold text-dark mb-2"><i class="fa-solid fa-wand-magic-sparkles me-1"></i> INFERENCIA</h6>
+                            <p class="text-xs text-muted mb-2 lh-sm">Descubrir relaciones implícitas (causalidad, identidad).</p>
+                            <button onclick="runReasoning()" id="btnReasoning" class="btn btn-outline-dark w-100 btn-sm bg-white text-xs">
+                                EJECUTAR
+                            </button>
+                            <div id="reasoningResult" class="mt-1 text-xs fw-bold text-center"></div>
+                        </div>
+                    </div>
+                    <!-- Export -->
+                    <div class="col-6">
+                        <div class="p-3 bg-success bg-opacity-10 rounded border border-success border-opacity-25 h-100">
+                            <h6 class="text-xs fw-bold text-dark mb-2"><i class="fa-solid fa-share-nodes me-1"></i> EXPORTAR</h6>
+                            <p class="text-xs text-muted mb-2 lh-sm">Descargar Ontología en formato JSON-LD standard.</p>
+                            <button onclick="downloadJSONLD()" class="btn btn-outline-success w-100 btn-sm bg-white text-xs">
+                                DESCARGAR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. DETAILS TAB -->
+            <div class="tab-pane fade p-4" id="tab-details">
+                <div id="details-placeholder" class="text-center text-muted mt-5">
+                    <i class="fa-solid fa-circle-nodes fs-1 mb-3 opacity-25"></i>
+                    <p class="text-sm">Selecciona un nodo o una cita [1] para ver el análisis profundo.</p>
+                </div>
+
+                <div id="details-content" class="d-none animate__animated animate__fadeIn">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-primary rounded-pill shadow-sm" id="detail-type">ENTITY</span>
+                        <h5 class="fw-bold m-0 text-break" id="detail-title">Title</h5>
+                    </div>
+                    <div class="card bg-white border shadow-sm p-3 mb-3">
+                        <div class="text-xs text-uppercase text-muted fw-bold mb-2 pb-1 border-bottom">Contexto / Fragmento</div>
+                        <p class="text-sm text-dark m-0 font-mono text-xs" id="detail-text" style="white-space: pre-wrap;">...</p>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-xs text-uppercase text-muted fw-bold mb-2">Conexiones Directas</div>
+                        <ul class="list-group list-group-flush" id="detail-connections">
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- CONFIGURACIÓN DE COLORES ONTOLÓGICOS ---
+    // Mapeo directo de la Ontología de Salud Mental definida en el backend
+    const ONTOLOGY_COLORS = {
+        'Person': '#3b82f6',            // Blue (Usuarios, Staff)
+        'Condition': '#ef4444',         // Red (Problemas)
+        'Intervention': '#10b981',      // Emerald (Soluciones)
+        'Outcome': '#8b5cf6',           // Purple (Objetivos)
+        'CommunityResource': '#06b6d4', // Cyan (Lugares)
+        'Concept': '#f59e0b',           // Amber (Abstracto)
+        'Unknown': '#94a3b8'            // Slate
+    };
+    
+    // Configuración visual de enlaces
+    const EDGE_COLOR = 'rgba(148, 163, 184, 0.4)';
+    const INFERENCE_COLOR = '#f43f5e'; // Rose
+
+    let network, allNodesData, allEdgesData;
+    let currentSources = []; 
+
+    document.addEventListener('DOMContentLoaded', () => { 
+        loadGraph(); 
+        setupTabListeners(); 
+    });
+
+    // --- 1. VIS.JS GRAPH ENGINE (ADAPTADO) ---
+    async function loadGraph() {
+        try {
+            const res = await fetch('/api/graph');
+            const data = await res.json();
+            
+            // Transformación de nodos basada en Categoría Ontológica
+            const nodes = data.nodes.map(n => {
+                const category = n.group || 'Unknown';
+                const color = ONTOLOGY_COLORS[category] || ONTOLOGY_COLORS['Unknown'];
+                
+                // Determinar forma basada en tipo
+                let shape = 'dot';
+                if (category === 'Person') shape = 'dot'; // o 'icon' si tuviéramos FontAwesome en canvas
+                if (category === 'CommunityResource') shape = 'hexagon';
+                if (category === 'Condition') shape = 'diamond';
+                
+                return {
+                    id: n.id,
+                    label: n.label.length > 20 ? n.label.substring(0, 18) + '..' : n.label,
+                    title: `<b>${n.label}</b><br>Type: ${category}`, 
+                    group: category,
+                    color: { 
+                        background: color, 
+                        border: 'rgba(255,255,255,0.4)',
+                        highlight: { background: '#fff', border: color }
+                    },
+                    font: { color: '#cbd5e1', face: 'Outfit', size: 14, strokeWidth: 3, strokeColor: '#0f172a' },
+                    shape: shape,
+                    size: category === 'Concept' ? 30 : 20,
+                    shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10, x: 5, y: 5 }
+                };
+            });
+
+            const edges = data.edges.map(e => ({
+                from: e.from, to: e.to, label: e.label,
+                color: { 
+                    color: e.label.includes('INFERRED') ? INFERENCE_COLOR : EDGE_COLOR, 
+                    opacity: 0.8 
+                },
+                dashes: e.label.includes('INFERRED'),
+                arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                font: { color: '#94a3b8', size: 10, align: 'middle', strokeWidth: 2, strokeColor: '#0f172a' }
+            }));
+
+            allNodesData = new vis.DataSet(nodes);
+            allEdgesData = new vis.DataSet(edges);
+
+            const container = document.getElementById('network-container');
+            const options = {
+                nodes: { borderWidth: 2 },
+                physics: {
+                    forceAtlas2Based: { 
+                        gravitationalConstant: -100, 
+                        springLength: 150, 
+                        springConstant: 0.05,
+                        damping: 0.9 
+                    },
+                    solver: 'forceAtlas2Based',
+                    stabilization: { iterations: 100 }
+                },
+                interaction: { hover: true, tooltipDelay: 200, zoomView: true }
+            };
+
+            network = new vis.Network(container, { nodes: allNodesData, edges: allEdgesData }, options);
+            
+            network.on("click", params => {
+                if (params.nodes.length > 0) showNodeDetails(params.nodes[0]); 
+                else if(document.querySelector('#tab-details').classList.contains('active')) refreshDetailsState();
+            });
+
+        } catch(e) { console.error("Graph Error", e); }
+    }
+
+    // --- 2. EXPORTACIÓN JSON-LD ---
+    async function downloadJSONLD() {
+        try {
+            const btn = document.querySelector('button[onclick="downloadJSONLD()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            const res = await fetch('/api/export/jsonld');
+            if(!res.ok) throw new Error("Error exporting");
+            
+            const json = await res.json();
+            const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/ld+json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `knowledge-graph-${new Date().toISOString().slice(0,10)}.jsonld`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        } catch(e) {
+            alert("Error descargando JSON-LD");
+            console.error(e);
+        }
+    }
+
+    // --- 3. UI LOGIC (TABS & DETAILS) ---
+    function setupTabListeners() {
+        const triggerTabList = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        triggerTabList.forEach(triggerEl => {
+            triggerEl.addEventListener('shown.bs.tab', event => {
+                const targetId = event.target.getAttribute('data-bs-target');
+                if (targetId === '#tab-chat') {
+                    setTimeout(() => {
+                        document.getElementById('userPrompt').focus();
+                        const chatArea = document.getElementById('chatArea');
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                    }, 50);
+                }
+                if (targetId === '#tab-details') refreshDetailsState();
+            });
+        });
+    }
+
+    function showNodeDetails(nodeId) {
+        const tabTrigger = document.querySelector('[data-bs-target="#tab-details"]');
+        const tab = new bootstrap.Tab(tabTrigger);
+        tab.show();
+        renderNodeDetails(nodeId);
+    }
+
+    function refreshDetailsState() {
+        const selectedIds = (network && network.getSelectedNodes()) || [];
+        if (selectedIds.length > 0) renderNodeDetails(selectedIds[0]);
+        else {
+            document.getElementById('details-placeholder').classList.remove('d-none');
+            document.getElementById('details-content').classList.add('d-none');
+        }
+    }
+
+    function renderNodeDetails(nodeId) {
+        const node = allNodesData.get(nodeId);
+        if(!node) return;
+
+        document.getElementById('details-placeholder').classList.add('d-none');
+        const contentDiv = document.getElementById('details-content');
+        contentDiv.classList.remove('d-none');
+        
+        contentDiv.classList.remove('animate__fadeIn');
+        void contentDiv.offsetWidth; 
+        contentDiv.classList.add('animate__fadeIn');
+        
+        // Estilo de badge según ontología
+        const badgeEl = document.getElementById('detail-type');
+        badgeEl.innerText = node.group.toUpperCase();
+        badgeEl.style.backgroundColor = ONTOLOGY_COLORS[node.group] || '#64748b';
+        
+        document.getElementById('detail-title').innerText = node.label;
+        document.getElementById('detail-text').innerText = `Entidad identificada como '${node.group}'.`;
+        
+        const connectedEdges = allEdgesData.get({ filter: e => e.from === nodeId || e.to === nodeId });
+        const ul = document.getElementById('detail-connections');
+        
+        if (connectedEdges.length === 0) {
+             ul.innerHTML = '<li class="text-xs text-muted fst-italic py-2">Sin conexiones directas visibles.</li>';
+        } else {
+            ul.innerHTML = connectedEdges.map(e => {
+                const neighborId = e.from === nodeId ? e.to : e.from;
+                const neighborNode = allNodesData.get(neighborId);
+                // Color punto vecino
+                const nColor = neighborNode ? (ONTOLOGY_COLORS[neighborNode.group] || '#ccc') : '#ccc';
+                
+                return `<li class="list-group-item px-0 py-1 d-flex justify-content-between border-bottom border-light">
+                            <span>
+                                <span class="d-inline-block rounded-circle me-2" style="width:8px;height:8px;background:${nColor}"></span>
+                                ${neighborId}
+                            </span>
+                            <span class="text-xs text-muted bg-light px-2 py-0 rounded border">${e.label}</span>
+                        </li>`;
+            }).join('');
+        }
+    }
+
+    // --- 4. CHAT & INGEST LOGIC ---
+    // (Mantenido igual que versión anterior pero asegurando colores en highlight)
+    function highlightSource(index) {
+        const source = currentSources.find(s => s.index === index);
+        if(!source) return;
+        const conceptIds = source.concepts;
+        
+        const updateArray = [];
+        allNodesData.forEach(node => {
+            if(conceptIds.includes(node.id)) {
+                // Highlight con color original pero más brillante o borde rojo
+                updateArray.push({ id: node.id, opacity: 1, size: 30, borderWidth: 4, color: { border: '#fff' } });
+            } else {
+                updateArray.push({ id: node.id, opacity: 0.1 });
+            }
+        });
+        network.body.data.nodes.update(updateArray);
+        if(conceptIds.length > 0) {
+            network.fit({ nodes: conceptIds, animation: { duration: 500 } });
+            network.selectNodes(conceptIds); 
+        }
+        showSourceDetails(source);
+    }
+    
+    function resetGraphHighlight() {
+        // Restaurar estado visual original (usando loadGraph logic implicitamente al resetear updates)
+        // Vis.js no tiene "reset" per se, hay que re-mapear o guardar estado inicial.
+        // Simplificación: Recargar colores desde ONTOLOGY_COLORS
+        const updateArray = [];
+        allNodesData.forEach(node => {
+            updateArray.push({ 
+                id: node.id, 
+                opacity: 1, 
+                size: node.group === 'Concept' ? 30 : 20,
+                borderWidth: 2,
+                color: { background: ONTOLOGY_COLORS[node.group] || ONTOLOGY_COLORS['Unknown'] }
+            });
+        });
+        network.body.data.nodes.update(updateArray);
+    }
+
+    function showSourceDetails(source) {
+        const tabTrigger = document.querySelector('[data-bs-target="#tab-details"]');
+        const tab = new bootstrap.Tab(tabTrigger);
+        tab.show();
+
+        document.getElementById('details-placeholder').classList.add('d-none');
+        document.getElementById('details-content').classList.remove('d-none');
+        
+        const badgeEl = document.getElementById('detail-type');
+        badgeEl.innerText = "FUENTE DOCUMENTAL";
+        badgeEl.style.backgroundColor = '#10b981';
+
+        document.getElementById('detail-title').innerText = "Ref #" + source.index;
+        document.getElementById('detail-text').innerText = source.short_content;
+        
+        const ul = document.getElementById('detail-connections');
+        ul.innerHTML = source.concepts.map(c => 
+            `<li class="list-group-item px-0 py-1 border-0"><i class="fa-solid fa-link text-xs me-2 opacity-50"></i>${c}</li>`
+        ).join('');
+    }
+
+    function handleEnter(e) { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
+    
+    async function sendChat() {
+        const input = document.getElementById('userPrompt');
+        const text = input.value.trim();
+        if(!text) return;
+        appendMsg('user', text);
+        input.value = '';
+        
+        const loadingId = 'loading-' + Date.now();
+        document.getElementById('chatArea').insertAdjacentHTML('beforeend', 
+            `<div id="${loadingId}" class="message-card message-ai text-muted border-0 shadow-none">
+                <i class="fa-solid fa-circle-notch fa-spin me-2"></i>Analizando ontología...
+             </div>`);
+        
+        try {
+            const res = await fetch('/api/chat', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: text}) 
+            });
+            const data = await res.json();
+            document.getElementById(loadingId).remove();
+            currentSources = data.sources || [];
+            
+            let html = DOMPurify.sanitize(marked.parse(data.response));
+            html = html.replace(/\[(\d+)\]/g, (match, p1) => {
+                const idx = parseInt(p1);
+                return `<span class="citation-badge" 
+                            onmouseenter="highlightSource(${idx})" 
+                            onmouseleave="resetGraphHighlight()"
+                            onclick="highlightSource(${idx})">${idx}</span>`;
+            });
+            appendMsg('ai', html, true);
+        } catch(e) {
+            document.getElementById(loadingId)?.remove();
+            appendMsg('ai', `<span class="text-danger">Error: ${e.message}</span>`, true);
+        }
+    }
+
+    function appendMsg(role, content, isHtml = false) {
+        const area = document.getElementById('chatArea');
+        const div = document.createElement('div');
+        div.className = `message-card ${role === 'user' ? 'message-user' : 'message-ai'}`;
+        if(role === 'ai') {
+            div.innerHTML = `
+                <div class="d-flex align-items-center gap-2 mb-2 border-bottom pb-2 border-light">
+                    <div class="bg-primary bg-opacity-10 p-1 rounded"><i class="fa-solid fa-brain text-primary"></i></div>
+                    <span class="fw-bold text-xs text-uppercase tracking-wide text-muted">LaMuralla AI</span>
+                </div>
+                <div class="md-content text-sm">${isHtml ? content : marked.parse(content)}</div>`;
+        } else div.innerText = content; 
+        area.appendChild(div);
+        area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
+    }
+
+    async function startIngestion() {
+        const btn = document.getElementById('btnIngest');
+        const logDiv = document.getElementById('progressLog');
+        const progressArea = document.getElementById('progressArea');
+        const textVal = document.getElementById('ingestContent').value;
+        const fileInput = document.getElementById('ingestFile');
+        
+        if(!textVal && fileInput.files.length === 0) return alert("Ingresa texto o selecciona un archivo.");
+        
+        const formData = new FormData();
+        if(textVal) formData.append('content', textVal);
+        if(fileInput.files.length > 0) formData.append('file', fileInput.files[0]);
+        
+        btn.disabled = true;
+        progressArea.classList.remove('d-none');
+        logDiv.innerHTML = '<div class="text-primary">🚀 Analizando contenido clínico/social...</div>';
+        
+        try {
+             const response = await fetch('/api/ingest', { method: 'POST', body: formData });
+             const reader = response.body.getReader();
+             const decoder = new TextDecoder();
+             while(true) {
+                const { done, value } = await reader.read();
+                if(done) break;
+                const chunk = decoder.decode(value);
+                chunk.split('\n').forEach(line => {
+                    if(line.trim()) logDiv.innerHTML += `<div>${line}</div>`;
+                });
+                logDiv.scrollTop = logDiv.scrollHeight;
+             }
+             btn.disabled = false;
+             reloadGraph();
+             document.getElementById('ingestContent').value = '';
+             fileInput.value = '';
+        } catch(e) { console.error(e); btn.disabled = false; }
+    }
+
+    function reloadGraph() { loadGraph(); }
+
+    async function runReasoning() {
+        const btn = document.getElementById('btnReasoning');
+        const resDiv = document.getElementById('reasoningResult');
+        btn.disabled = true;
+        resDiv.innerHTML = '<div class="spinner-border spinner-border-sm text-dark"></div>';
+        try {
+            const res = await fetch('/api/reasoning/run', { method: 'POST' });
+            const data = await res.json();
+            resDiv.innerHTML = `<span class="text-success fw-bold">${data.length} Inferencias</span>`;
+            if(data.length > 0) reloadGraph();
+        } catch(e) {
+            resDiv.innerHTML = '<span class="text-danger">Error</span>';
+        } finally { btn.disabled = false; }
+    }
+</script>
+{% endblock %}
