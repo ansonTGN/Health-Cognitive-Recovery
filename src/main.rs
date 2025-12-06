@@ -15,6 +15,7 @@ use tokio::sync::RwLock;
 use neo4rs::Graph;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use tower::{ServiceBuilder}; // Importante
 use tower_http::{
     trace::TraceLayer,
     cors::CorsLayer,
@@ -86,7 +87,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = Arc::new(Graph::new(&uri, &user, &pass).await?);
     let repo = Arc::new(Neo4jRepo::new(graph.clone()));
     
-    // Init Indexes & Admin User (Bootstrap)
     repo.create_indexes(embedding_dim).await.ok();
     
     let admin_user = std::env::var("ADMIN_USER").unwrap_or("admin".to_string());
@@ -99,24 +99,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tera = Tera::new("templates/**/*.html")?;
     let app_state = Arc::new(AppState { repo: repo.clone(), ai_service, tera });
 
-    // 4. Security Layers (Helmet + Rate Limit)
-    let governor_conf = Box::new(GovernorConfigBuilder::default()
+    // 4. Security Layers
+    // CORRECCIÓN: Usar Arc para la configuración del gobernador
+    let governor_conf = Arc::new(GovernorConfigBuilder::default()
         .per_second(5) 
         .burst_size(10)
         .finish()
         .unwrap());
 
-    let secure_headers = SetResponseHeaderLayer::overriding(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"))
+    // CORRECCIÓN: Usar ServiceBuilder para agrupar las capas de cabeceras
+    let secure_headers = ServiceBuilder::new()
+        .layer(SetResponseHeaderLayer::overriding(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff")))
         .layer(SetResponseHeaderLayer::overriding(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY")))
         .layer(SetResponseHeaderLayer::overriding(header::STRICT_TRANSPORT_SECURITY, HeaderValue::from_static("max-age=63072000; includeSubDomains; preload")));
 
-    // 5. Routing Strategy (Public -> Auth -> Admin)
-    
+    // 5. Routing
     let public_routes = Router::new()
         .route("/", get(ui::render_login).post(ui::authenticate))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 
-    // Rutas protegidas (Requieren Login)
     let user_routes = Router::new()
         .route("/dashboard", get(ui::render_dashboard_guarded))
         .route("/api/graph", get(graph::get_graph))
@@ -126,7 +127,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/reasoning/run", post(reasoning::run_reasoning))
         .route_layer(middleware::from_fn(crate::interface::middleware::auth_middleware));
 
-    // Rutas Admin (Requieren Login + Role=Admin)
     let admin_routes = Router::new()
         .route("/api/admin/config", post(admin::update_config))
         .route("/api/ingest", post(ingest::ingest_document))
@@ -138,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(user_routes)
         .merge(admin_routes)
         .route("/logout", get(|| async { Redirect::to("/") }))
-        .layer(GovernorLayer { config: Box::leak(governor_conf) })
+        .layer(GovernorLayer { config: governor_conf }) // Pasamos el Arc
         .layer(secure_headers)
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())

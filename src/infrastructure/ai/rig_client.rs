@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 use rig::{
-    providers::openai::{self, OpenAIResponsesExt},
+    providers::openai::{self}, // Eliminado OpenAIResponsesExt y otros internos
     client::{CompletionClient, EmbeddingsClient},
     completion::Prompt,
     embeddings::EmbeddingsBuilder,
 };
 use secrecy::ExposeSecret;
 use serde_json::from_str;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+// use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE}; // Ya no es necesario manual
 use crate::domain::{models::{AIConfig, KnowledgeExtraction, InferenceResult}, ports::AIService, errors::AppError};
 
 pub struct RigAIService {
@@ -27,26 +27,13 @@ impl RigAIService {
             .to_string()
     }
     
+    // CORRECCIÓN: Uso simplificado de la API de Rig
     fn get_client(&self) -> openai::Client {
         let base_url = self.config.base_url.as_deref().unwrap_or("https://api.openai.com/v1");
         let api_key = self.config.api_key.expose_secret();
 
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        
-        if !api_key.is_empty() {
-            if let Ok(mut val) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
-                val.set_sensitive(true);
-                headers.insert(AUTHORIZATION, val);
-            }
-        }
-
-        openai::Client::from_parts(
-            base_url.to_string(),
-            headers,
-            reqwest::Client::new(),
-            OpenAIResponsesExt,
-        )
+        // Rig maneja los headers y auth internamente con from_url
+        openai::Client::from_url(api_key, base_url)
     }
 }
 
@@ -84,37 +71,16 @@ impl AIService for RigAIService {
     async fn extract_knowledge(&self, text: &str) -> Result<KnowledgeExtraction, AppError> {
         let client = self.get_client(); 
 
-        // PROMPT DE INGENIERÍA ONTOLÓGICA ESPECIALIZADO
         let ontology_prompt = r#"
         Eres un experto en Psicología Comunitaria, Psiquiatría y Análisis de Datos.
         Tu tarea es transformar el texto proporcionado en un Grafo de Conocimiento estructurado.
         
         REGLAS ONTOLÓGICAS ESTRICTAS:
-        
         1. CATEGORÍAS DE ENTIDADES PERMITIDAS (Nodes):
-           - 'Person': Usuarios, familiares, profesionales (ej. 'María', 'Dr. López').
-           - 'Condition': Diagnósticos, síntomas, malestares (ej. 'Ansiedad', 'Aislamiento').
-           - 'Intervention': Talleres, terapias, actividades (ej. 'Taller de Radio', 'Asamblea').
-           - 'Outcome': Objetivos o resultados (ej. 'Mejora autoestima', 'Vinculación laboral').
-           - 'CommunityResource': Organizaciones, clubes, instituciones (ej. 'Club Social', 'CAP').
-           - 'Concept': Ideas abstractas (ej. 'Empoderamiento', 'Recuperación').
-        
+           - 'Person', 'Condition', 'Intervention', 'Outcome', 'CommunityResource', 'Concept'.
         2. RELACIONES PERMITIDAS (Edges):
-           - EXPERIENCES (Person -> Condition)
-           - PARTICIPATES_IN (Person -> Intervention)
-           - FACILITATES (Person -> Intervention)
-           - MITIGATES (Intervention -> Condition)
-           - PROMOTES (Intervention -> Outcome)
-           - UTILIZES (Person -> CommunityResource)
-           - EMBODIES (Intervention -> Concept)
-           - RELATED_TO (Genérico, usar solo si no hay otro).
-
-        3. DIRECTRICES DE EXTRACCIÓN:
-           - Normaliza nombres (ej. "Taller de cocina" y "Clase de cocina" -> "Taller de Cocina").
-           - Si el texto menciona "Club Social", trátalo como 'CommunityResource'.
-           - Ignora palabras vacías o verbos comunes como entidades.
-           
-        FORMATO JSON DE SALIDA:
+           - EXPERIENCES, PARTICIPATES_IN, FACILITATES, MITIGATES, PROMOTES, UTILIZES, EMBODIES, RELATED_TO.
+        3. FORMATO JSON DE SALIDA:
         { 
             "entities": [{"name": "...", "category": "..."}], 
             "relations": [{"source": "...", "target": "...", "relation_type": "..."}] 

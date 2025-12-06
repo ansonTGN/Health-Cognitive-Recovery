@@ -1,7 +1,4 @@
-// AÑADIR este import al principio del archivo
 use axum::Extension; 
-use crate::domain::models::Claims; // Asegúrate de tener esto
-
 use axum::{
     response::{Html, IntoResponse, Redirect},
     extract::{State, Form},
@@ -17,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::interface::handlers::admin::AppState;
 use crate::interface::middleware::COOKIE_KEY;
-use crate::domain::models::{Claims, UserRole};
+use crate::domain::models::{Claims, UserRole}; // Importación limpia
 
 #[derive(Deserialize)]
 pub struct AuthPayload {
@@ -71,7 +68,7 @@ pub async fn authenticate(
         cookie.set_same_site(SameSite::Strict);
         cookie.set_path("/");
 
-        // Firmar cookie
+        // Firmar cookie (Ahora funcionará porque activamos la feature)
         let key = Key::from(COOKIE_KEY);
         let updated_jar = jar.signed_with(&key).add(cookie);
 
@@ -79,21 +76,18 @@ pub async fn authenticate(
     } else {
         let mut ctx = Context::new();
         ctx.insert("error", &true);
-        // Usamos una nueva instancia de Tera si falla para evitar issues de threading con State
         let tera = Tera::new("templates/**/*.html").unwrap();
         let html = tera.render("login.html", &ctx).unwrap_or_default();
         (StatusCode::UNAUTHORIZED, Html(html)).into_response()
     }
 }
 
-// REEMPLAZAR la función render_dashboard_guarded por esta versión:
 pub async fn render_dashboard_guarded(
-    Extension(claims): Extension<Claims>, // <--- AQUÍ RECUPERAMOS LOS DATOS DEL JWT
+    Extension(claims): Extension<Claims>,
     State(state): State<Arc<AppState>>
 ) -> impl IntoResponse {
     let mut ctx = Context::new();
     
-    // 1. Datos de Configuración IA
     let ai_guard = state.ai_service.read().await;
     let config = ai_guard.get_config();
 
@@ -102,10 +96,8 @@ pub async fn render_dashboard_guarded(
         "embedding_dim": config.embedding_dim
     }));
 
-    // 2. Datos del Usuario (NUEVO)
-    // Pasamos el rol y el usuario al HTML para mostrar/ocultar elementos
     ctx.insert("username", &claims.sub);
-    ctx.insert("role", &claims.role.to_string()); // "Admin" o "User"
+    ctx.insert("role", &claims.role.to_string());
 
     match state.tera.render("dashboard.html", &ctx) {
         Ok(html) => Html(html).into_response(),

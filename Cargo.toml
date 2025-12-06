@@ -8,14 +8,14 @@ edition = "2021"
 axum = { version = "0.8.1", features = ["macros", "multipart"] }
 axum-core = "0.5.0"
 tokio = { version = "1", features = ["full"] }
-tower = { version = "0.5.2", features = ["util", "timeout"] }
+tower = { version = "0.5.2", features = ["util", "timeout", "make"] } # Agregado "make"
 tower-http = { version = "0.6.2", features = ["cors", "trace", "auth", "fs", "set-header"] }
 
 # Security & Auth
 bcrypt = "0.16.0"
 jsonwebtoken = "9.3.0"
-axum-extra = { version = "0.10.0", features = ["cookie", "typed-header"] }
-# --- CORRECCIÓN AQUÍ (Guion bajo en lugar de medio) ---
+# IMPORTANTE: Se agregó la feature "cookie-signed"
+axum-extra = { version = "0.10.0", features = ["cookie", "cookie-signed", "typed-header"] } 
 tower_governor = "0.5.0" 
 governor = "0.8.0"
 

@@ -192,7 +192,7 @@ impl KGRepository for Neo4jRepo {
         Ok(results)
     }
 
-    async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphDataResponse, AppError> {
+async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphDataResponse, AppError> {
         let q = query("MATCH (center:Entity {name: $name})-[r]-(neighbor:Entity) RETURN center.name, center.category, type(r) as rel, startNode(r) = center as is_source, neighbor.name, neighbor.category LIMIT 100").param("name", concept_name);
         let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         let mut nodes_vec = Vec::new();
@@ -209,10 +209,24 @@ impl KGRepository for Neo4jRepo {
             let n_name: String = row.get("neighbor.name").unwrap_or_default();
             let n_cat: String = row.get("neighbor.category").unwrap_or_else(|_| "Concept".to_string());
 
-            if unique_nodes.insert(c_name.clone()) { nodes_vec.push(VisNode { id: c_name.clone(), label: c_name.clone(), group: c_cat }); }
-            if unique_nodes.insert(n_name.clone()) { nodes_vec.push(VisNode { id: n_name.clone(), label: n_name.clone(), group: n_cat }); }
+            // CORRECCIÓN: Clonar id para no perder la propiedad de c_name
+            if unique_nodes.insert(c_name.clone()) { 
+                nodes_vec.push(VisNode { id: c_name.clone(), label: c_name, group: c_cat }); 
+            }
             
-            let (from, to) = if is_source { (c_name.clone(), n_name.clone()) } else { (n_name.clone(), c_name.clone()) };
+            if unique_nodes.insert(n_name.clone()) { 
+                nodes_vec.push(VisNode { id: n_name.clone(), label: n_name, group: n_cat }); 
+            }
+            
+            // Aquí usamos los últimos nodos insertados, pero como unique_nodes ya los tiene,
+            // podemos necesitar recuperarlos de los valores originales del row si los hemos movido.
+            // Para simplificar, obtenemos los valores de nuevo del row o usamos clones arriba.
+            // La forma más segura en Rust para esto es clonar explícitamente cuando se necesita:
+            
+            let c_name_edge: String = row.get("center.name").unwrap_or_default();
+            let n_name_edge: String = row.get("neighbor.name").unwrap_or_default();
+
+            let (from, to) = if is_source { (c_name_edge, n_name_edge) } else { (n_name_edge, c_name_edge) };
             edges_vec.push(VisEdge { from, to, label: rel_type });
         }
         
@@ -222,7 +236,8 @@ impl KGRepository for Neo4jRepo {
              if let Ok(Some(row)) = stream_fallback.next().await {
                 let name: String = row.get("center.name").unwrap_or_default();
                 let cat: String = row.get("center.category").unwrap_or_else(|_| "Concept".to_string());
-                nodes_vec.push(VisNode { id: name, label: name.clone(), group: cat });
+                // CORRECCIÓN: Clonar
+                nodes_vec.push(VisNode { id: name.clone(), label: name, group: cat });
              }
         }
         nodes_vec.sort_by(|a, b| a.id.cmp(&b.id));
