@@ -11,11 +11,12 @@ tokio = { version = "1", features = ["full"] }
 tower = { version = "0.5.2", features = ["util", "timeout"] }
 tower-http = { version = "0.6.2", features = ["cors", "trace", "auth", "fs", "set-header"] }
 
-# Security & Auth (NUEVOS)
+# Security & Auth
 bcrypt = "0.16.0"
 jsonwebtoken = "9.3.0"
 axum-extra = { version = "0.10.0", features = ["cookie", "typed-header"] }
-tower-governor = "0.5.0" # Rate limiting
+# --- CORRECCIÓN AQUÍ (Guion bajo en lugar de medio) ---
+tower_governor = "0.5.0" 
 governor = "0.8.0"
 
 # Parsing & Utils
