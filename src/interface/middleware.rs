@@ -8,15 +8,15 @@ use axum_extra::extract::cookie::{SignedCookieJar, Key};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use crate::domain::models::{Claims, UserRole};
 
-// Clave estática para firma de cookies (Debe coincidir con main)
-pub static COOKIE_KEY: &[u8] = b"SUPER_SECURE_KEY_THAT_MUST_BE_VERY_LONG_IN_PROD_123456";
+// CORRECCIÓN: Esta clave debe tener AL MENOS 64 bytes.
+// Antes tenía 54 bytes, por eso el pánico "TooShort(54)".
+pub static COOKIE_KEY: &[u8] = b"SUPER_SECURE_KEY_THAT_MUST_BE_VERY_LONG_IN_PROD_123456_EXTENDED_TO_REACH_64_BYTES_MINIMUM";
 
 pub async fn auth_middleware(
     mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
     
-    // Extraer cookies firmadas manualmente
     let headers = req.headers().clone();
     let key = Key::from(COOKIE_KEY);
     // En axum-extra 0.9, from_headers toma (headers, key) para SignedCookieJar

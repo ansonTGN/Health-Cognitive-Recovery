@@ -5,7 +5,7 @@ use axum::{
     Extension,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar}; 
-use std::sync::Arc;
+// use std::sync::Arc; <-- ELIMINADO
 use tera::{Context, Tera};
 use serde::Deserialize;
 use bcrypt::verify;
@@ -33,7 +33,7 @@ pub async fn render_login() -> impl IntoResponse {
 }
 
 pub async fn authenticate(
-    State(state): State<AppState>, // <-- Sin Arc<>
+    State(state): State<AppState>, 
     jar: SignedCookieJar, 
     Form(payload): Form<AuthPayload>,
 ) -> impl IntoResponse {
@@ -78,7 +78,7 @@ pub async fn authenticate(
 
 pub async fn render_dashboard_guarded(
     Extension(claims): Extension<Claims>,
-    State(state): State<AppState> // <-- Sin Arc<>
+    State(state): State<AppState>
 ) -> impl IntoResponse {
     let mut ctx = Context::new();
     
