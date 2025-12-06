@@ -9,13 +9,14 @@ use axum::{
     middleware,
     response::Redirect, 
     http::{HeaderValue, header},
+    Extension,
 }; 
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use neo4rs::Graph;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use tower::{ServiceBuilder}; // Importante
+use tower::ServiceBuilder;
 use tower_http::{
     trace::TraceLayer,
     cors::CorsLayer,
@@ -25,12 +26,13 @@ use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use secrecy::SecretString;
 use tera::Tera;
 use bcrypt::{hash, DEFAULT_COST};
+use axum_extra::extract::cookie::Key; // Importante
 
 use crate::domain::models::*;
-use crate::domain::ports::KGRepository; 
 use crate::infrastructure::ai::rig_client::RigAIService;
 use crate::infrastructure::persistence::neo4j_repo::Neo4jRepo;
 use crate::interface::handlers::{admin::{self, AppState}, ingest, graph, ui, chat, reasoning, export}; 
+use crate::interface::middleware::COOKIE_KEY;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -87,7 +89,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = Arc::new(Graph::new(&uri, &user, &pass).await?);
     let repo = Arc::new(Neo4jRepo::new(graph.clone()));
     
-    repo.create_indexes(embedding_dim).await.ok();
+    // Ignoramos error si ya existen índices
+    let _ = repo.create_indexes(embedding_dim).await;
     
     let admin_user = std::env::var("ADMIN_USER").unwrap_or("admin".to_string());
     let admin_pass = std::env::var("ADMIN_PASS").unwrap_or("admin123".to_string());
@@ -100,18 +103,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = Arc::new(AppState { repo: repo.clone(), ai_service, tera });
 
     // 4. Security Layers
-    // CORRECCIÓN: Usar Arc para la configuración del gobernador
-    let governor_conf = Arc::new(GovernorConfigBuilder::default()
+    let governor_conf = Box::new(GovernorConfigBuilder::default()
         .per_second(5) 
         .burst_size(10)
         .finish()
         .unwrap());
-
-    // CORRECCIÓN: Usar ServiceBuilder para agrupar las capas de cabeceras
-    let secure_headers = ServiceBuilder::new()
-        .layer(SetResponseHeaderLayer::overriding(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff")))
-        .layer(SetResponseHeaderLayer::overriding(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY")))
-        .layer(SetResponseHeaderLayer::overriding(header::STRICT_TRANSPORT_SECURITY, HeaderValue::from_static("max-age=63072000; includeSubDomains; preload")));
 
     // 5. Routing
     let public_routes = Router::new()
@@ -138,8 +134,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(user_routes)
         .merge(admin_routes)
         .route("/logout", get(|| async { Redirect::to("/") }))
-        .layer(GovernorLayer { config: governor_conf }) // Pasamos el Arc
-        .layer(secure_headers)
+        // Inyectamos la Key para SignedCookieJar
+        .layer(Extension(Key::from(COOKIE_KEY)))
+        .layer(GovernorLayer { config: Box::leak(governor_conf) })
+        .layer(SetResponseHeaderLayer::overriding(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff")))
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
         .with_state(app_state);

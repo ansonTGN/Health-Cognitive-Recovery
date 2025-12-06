@@ -1,13 +1,11 @@
 use async_trait::async_trait;
 use rig::{
-    providers::openai::{self}, // Eliminado OpenAIResponsesExt y otros internos
-    client::{CompletionClient, EmbeddingsClient},
+    providers::openai::{self},
     completion::Prompt,
     embeddings::EmbeddingsBuilder,
 };
 use secrecy::ExposeSecret;
 use serde_json::from_str;
-// use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE}; // Ya no es necesario manual
 use crate::domain::{models::{AIConfig, KnowledgeExtraction, InferenceResult}, ports::AIService, errors::AppError};
 
 pub struct RigAIService {
@@ -27,12 +25,9 @@ impl RigAIService {
             .to_string()
     }
     
-    // CORRECCIÓN: Uso simplificado de la API de Rig
     fn get_client(&self) -> openai::Client {
         let base_url = self.config.base_url.as_deref().unwrap_or("https://api.openai.com/v1");
         let api_key = self.config.api_key.expose_secret();
-
-        // Rig maneja los headers y auth internamente con from_url
         openai::Client::from_url(api_key, base_url)
     }
 }
@@ -57,7 +52,7 @@ impl AIService for RigAIService {
             .map_err(|e| AppError::AIError(format!("Error adding document: {}", e)))? 
             .build()
             .await
-            .map_err(|e| AppError::AIError(format!("Embedding failed (Provider: {:?}): {}", self.config.provider, e)))?;
+            .map_err(|e| AppError::AIError(format!("Embedding failed: {}", e)))?;
 
         let (_, embedding_data) = embeddings.first()
             .ok_or_else(|| AppError::AIError("No embedding returned".to_string()))?;
@@ -72,19 +67,8 @@ impl AIService for RigAIService {
         let client = self.get_client(); 
 
         let ontology_prompt = r#"
-        Eres un experto en Psicología Comunitaria, Psiquiatría y Análisis de Datos.
-        Tu tarea es transformar el texto proporcionado en un Grafo de Conocimiento estructurado.
-        
-        REGLAS ONTOLÓGICAS ESTRICTAS:
-        1. CATEGORÍAS DE ENTIDADES PERMITIDAS (Nodes):
-           - 'Person', 'Condition', 'Intervention', 'Outcome', 'CommunityResource', 'Concept'.
-        2. RELACIONES PERMITIDAS (Edges):
-           - EXPERIENCES, PARTICIPATES_IN, FACILITATES, MITIGATES, PROMOTES, UTILIZES, EMBODIES, RELATED_TO.
-        3. FORMATO JSON DE SALIDA:
-        { 
-            "entities": [{"name": "...", "category": "..."}], 
-            "relations": [{"source": "...", "target": "...", "relation_type": "..."}] 
-        }
+        Eres un experto en Psicología. Extrae entidades (Person, Condition, Intervention, Outcome) y relaciones.
+        Output JSON: { "entities": [...], "relations": [...] }
         "#;
 
         let agent = client.agent(&self.config.model_name)
@@ -95,9 +79,8 @@ impl AIService for RigAIService {
             .map_err(|e| AppError::AIError(format!("Extraction failed: {}", e)))?;
 
         let cleaned_json = self.clean_json_response(&response);
-
         let extraction: KnowledgeExtraction = from_str(&cleaned_json)
-            .map_err(|e| AppError::ParseError(format!("Failed to parse JSON: {} - Raw: {}", e, cleaned_json)))?;
+            .map_err(|e| AppError::ParseError(format!("JSON Error: {}", e)))?;
 
         Ok(extraction)
     }
@@ -110,7 +93,6 @@ impl AIService for RigAIService {
             .map_err(|e| AppError::AIError(format!("Inference failed: {}", e)))?;
             
         let cleaned = self.clean_json_response(&response);
-        
         let result: InferenceResult = serde_json::from_str(&cleaned)
             .map_err(|e| AppError::ParseError(format!("JSON Error: {}", e)))?;
             
