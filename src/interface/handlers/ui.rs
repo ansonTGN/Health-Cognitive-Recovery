@@ -1,3 +1,7 @@
+// AÑADIR este import al principio del archivo
+use axum::Extension; 
+use crate::domain::models::Claims; // Asegúrate de tener esto
+
 use axum::{
     response::{Html, IntoResponse, Redirect},
     extract::{State, Form},
@@ -82,12 +86,14 @@ pub async fn authenticate(
     }
 }
 
+// REEMPLAZAR la función render_dashboard_guarded por esta versión:
 pub async fn render_dashboard_guarded(
+    Extension(claims): Extension<Claims>, // <--- AQUÍ RECUPERAMOS LOS DATOS DEL JWT
     State(state): State<Arc<AppState>>
 ) -> impl IntoResponse {
     let mut ctx = Context::new();
     
-    // Recuperar configuración para el frontend
+    // 1. Datos de Configuración IA
     let ai_guard = state.ai_service.read().await;
     let config = ai_guard.get_config();
 
@@ -96,8 +102,13 @@ pub async fn render_dashboard_guarded(
         "embedding_dim": config.embedding_dim
     }));
 
+    // 2. Datos del Usuario (NUEVO)
+    // Pasamos el rol y el usuario al HTML para mostrar/ocultar elementos
+    ctx.insert("username", &claims.sub);
+    ctx.insert("role", &claims.role.to_string()); // "Admin" o "User"
+
     match state.tera.render("dashboard.html", &ctx) {
         Ok(html) => Html(html).into_response(),
-        Err(err) => Html(format!("<h1>Error</h1><p>{}</p>", err)).into_response(),
+        Err(err) => Html(format!("<h1>Error rendering template</h1><p>{}</p>", err)).into_response(),
     }
 }

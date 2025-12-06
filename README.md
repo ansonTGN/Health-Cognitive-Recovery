@@ -2,8 +2,8 @@
 
 ![Rust](https://img.shields.io/badge/Core-Rust_1.80+-orange?style=for-the-badge&logo=rust)
 ![Neo4j](https://img.shields.io/badge/Graph_DB-Neo4j_5+-008CC1?style=for-the-badge&logo=neo4j&logoColor=white)
+![Security](https://img.shields.io/badge/Security-RBAC_%26_JWT-green?style=for-the-badge&logo=shield)
 ![Domain](https://img.shields.io/badge/Domain-Mental_Health-red?style=for-the-badge&logo=heart)
-![AI](https://img.shields.io/badge/AI-Ontological_Reasoning-8A2BE2?style=for-the-badge)
 
 ---
 
@@ -14,120 +14,219 @@
 <a name="es"></a>
 ## 🇪🇸 Español
 
-### 🏥 Introducción: Tecnología para el Modelo de Recuperación
-**LaMuralla Health** no es simplemente un gestor documental; es un **Sistema de Inteligencia Cognitiva** diseñado específicamente para el ámbito de la **Salut Mental Comunitaria**.
+### ❤️ Para el Sector Social: ¿Qué es LaMuralla?
+> *"Transformando historias de vida en evidencia para la recuperación."*
 
-En un sector donde la información cualitativa (notas de evolución, memorias de talleres, dinámicas de grupos) es vital pero difícil de estructurar, esta herramienta permite transformar texto libre en un **Grafo de Conocimiento** vivo. Su objetivo principal es visibilizar las conexiones invisibles del **Modelo de Recuperación**: vinculando *Intervenciones* (ej. Club Social) con *Resultados* (ej. Empoderamiento, Inclusión), facilitando así una toma de decisiones basada en la evidencia psicosocial y no solo en el diagnóstico clínico.
+Si trabajas en **salud mental, trabajo social o integración comunitaria**, sabes que la parte más importante de tu trabajo queda escrita en notas de evolución, memorias de actividades y observaciones diarias. Sin embargo, esa información a menudo se pierde o es difícil de analizar en conjunto.
 
-### ✨ Capacidades Principales
-1.  **Ontología Especializada:** El sistema no "adivina"; aplica una estructura ontológica estricta (*Persona, Condición, Intervención, Recurso Comunitario, Resultado*) para organizar la información.
-2.  **RAG Híbrido (GraphRAG):** Combina búsqueda vectorial (similitud semántica) con navegación de grafos para responder preguntas complejas con contexto profundo.
-3.  **Motor de Inferencia:** Un módulo de IA analiza el grafo para descubrir relaciones implícitas (ej. "Si A participa en B y B promueve C, entonces A está trabajando en C").
-4.  **Interoperabilidad Semántica:** Capacidad nativa para exportar el conocimiento adquirido en formato **JSON-LD**, permitiendo la integración con otros sistemas de salud y estándares de datos abiertos.
-5.  **Privacidad y Rendimiento:** Backend de alto rendimiento escrito en **Rust**, garantizando velocidad y tipado seguro de datos.
+**LaMuralla Health** es un asistente inteligente que lee y "comprende" esos textos. No solo guarda la información, sino que **conecta los puntos**:
+*   Detecta automáticamente si un usuario que asiste al *Club Social* (Intervención) mejora su *Autoestima* (Resultado).
+*   Te permite preguntar: *"¿Qué actividades están generando mayor vínculo comunitario?"*
+*   Ayuda a justificar decisiones basándose en la evidencia real del día a día, apoyando el **Modelo de Recuperación**.
 
-### 🛠️ Stack Tecnológico
-*   **Core:** Rust (Axum, Tokio).
-*   **Base de Datos:** Neo4j (Almacenamiento híbrido: Vectorial + Grafo).
-*   **IA & LLM:** Rig-Core (Orquestación) + OpenAI/Groq.
-*   **Frontend:** Tera (SSR), Bootstrap 5, Vis.js (Visualización interactiva).
+---
 
-### 🚀 Instalación Rápida
+### 💻 Documentación Técnica
 
-1.  **Requisitos:** Tener instalado Rust, Docker (opcional) y una instancia de Neo4j.
-2.  **Configuración:**
-    Crea un archivo `.env` basado en el ejemplo:
-    ```env
-    NEO4J_URI=bolt://localhost:7687
-    NEO4J_USER=neo4j
-    NEO4J_PASS=tu_password
-    AI_API_KEY=sk-...
-    ```
-3.  **Ejecución:**
-    ```bash
-    cargo run --release
-    ```
-    Accede a la plataforma en: `http://localhost:3000`
+#### Introducción: Sistema de Inteligencia Cognitiva
+**LaMuralla Health** es un motor RAG (Retrieval-Augmented Generation) avanzado que transforma texto libre clínico/social en un **Grafo de Conocimiento**. Utiliza una ontología estricta (*Persona, Condición, Intervención, Recurso, Resultado*) para estructurar datos no estructurados y permitir razonamiento complejo mediante IA.
+
+#### 🛡️ Arquitectura de Seguridad (Nueva v2.0)
+El sistema ha sido fortificado para cumplir con estándares de protección de datos y despliegue en producción:
+1.  **RBAC (Control de Acceso Basado en Roles):**
+    *   **Administrador:** Capacidad total (Ingesta de documentos, Configuración de IA, Gestión del Grafo).
+    *   **Usuario (Profesional):** Acceso de solo lectura (Chat Asistente, Visualización, Exportación).
+2.  **Autenticación Robusta:**
+    *   Hashing de contraseñas con **Bcrypt**.
+    *   Sesiones *stateless* mediante **JWT (JSON Web Tokens)**.
+3.  **Protección de Sesión:**
+    *   Cookies firmadas con atributos `HttpOnly`, `Secure` y `SameSite=Strict` para prevenir ataques XSS y CSRF.
+4.  **Defensa Activa:**
+    *   **Rate Limiting:** Protección contra ataques de fuerza bruta y DoS.
+    *   **Secure Headers:** Cabeceras HTTP estrictas para prevenir Clickjacking y sniffing.
+
+#### ✨ Capacidades Principales
+1.  **GraphRAG Híbrido:** Búsqueda vectorial + Navegación de grafos para respuestas contextuales profundas.
+2.  **Motor de Inferencia:** Deduce relaciones implícitas (ej. Transitividad entre participación y mejora de salud).
+3.  **Interoperabilidad:** Exportación nativa a **JSON-LD** y **RDF/Turtle** (Web Semántica).
+4.  **Rendimiento:** Backend escrito en **Rust (Axum)**, garantizando seguridad de memoria y velocidad.
+
+#### 🚀 Despliegue (Docker & Render)
+
+El proyecto está dockerizado para un despliegue sencillo en plataformas como Render o Kubernetes.
+
+**Variables de Entorno Requeridas:**
+```env
+# Servidor
+PORT=3000
+RUST_LOG=info
+JWT_SECRET=super_secret_key_base64
+
+# Base de Datos (Neo4j AuraDB o Local)
+NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASS=tu_password
+
+# Credenciales Iniciales
+ADMIN_USER=admin
+ADMIN_PASS=password_seguro
+
+# Inteligencia Artificial
+AI_PROVIDER=openai
+AI_API_KEY=sk-...
+AI_MODEL=gpt-4o
+```
+
+**Ejecución Local:**
+```bash
+cargo run --release
+```
 
 ---
 
 <a name="en"></a>
 ## 🇺🇸 English
 
-### 🏥 Introduction: Technology for the Recovery Model
-**LaMuralla Health** is more than a document management system; it is a **Cognitive Intelligence Engine** tailored for **Community Mental Health**.
+### ❤️ For the Social Sector: What is LaMuralla?
+> *"Turning life stories into evidence for recovery."*
 
-In a sector where qualitative information (progress notes, workshop reports, group dynamics) is vital yet hard to structure, this tool transforms unstructured text into a living **Knowledge Graph**. Its core mission is to unveil the invisible connections within the **Recovery Model**: linking *Interventions* (e.g., Social Clubs) with *Outcomes* (e.g., Empowerment, Inclusion), thereby enabling decision-making based on psycho-social evidence rather than just clinical diagnosis.
+If you work in **mental health, social work, or community integration**, you know that the most vital part of your job is written in progress notes, workshop reports, and daily observations. However, that information is often lost or hard to analyze as a whole.
 
-### ✨ Key Features
-1.  **Specialized Ontology:** The system enforces a strict ontological structure (*Person, Condition, Intervention, Community Resource, Outcome*) to organize data precisely.
-2.  **Hybrid RAG (GraphRAG):** Combines vector search (semantic similarity) with graph traversal to answer complex questions with deep context.
-3.  **Inference Engine:** An AI module analyzes the graph to discover implicit relationships (e.g., Transitivity between participation and health outcomes).
-4.  **Semantic Interoperability:** Native capability to export acquired knowledge in **JSON-LD** format, allowing integration with other health systems and open data standards.
-5.  **Privacy & Performance:** High-performance backend written in **Rust**, ensuring speed and type safety.
+**LaMuralla Health** is an intelligent assistant that reads and "understands" those texts. It doesn't just store information; it **connects the dots**:
+*   It automatically detects if a user attending the *Social Club* (Intervention) improves their *Self-esteem* (Outcome).
+*   It allows you to ask: *"Which activities are generating the most community bonding?"*
+*   It helps justify decisions based on real daily evidence, supporting the **Recovery Model**.
 
-### 🛠️ Tech Stack
-*   **Core:** Rust (Axum, Tokio).
-*   **Database:** Neo4j (Hybrid storage: Vector + Graph).
-*   **AI & LLM:** Rig-Core (Orchestration) + OpenAI/Groq.
-*   **Frontend:** Tera (SSR), Bootstrap 5, Vis.js (Interactive visualization).
+---
 
-### 🚀 Quick Start
+### 💻 Technical Documentation
 
-1.  **Prerequisites:** Rust, Docker (optional), and a running Neo4j instance.
-2.  **Configuration:**
-    Create a `.env` file:
-    ```env
-    NEO4J_URI=bolt://localhost:7687
-    NEO4J_USER=neo4j
-    NEO4J_PASS=your_password
-    AI_API_KEY=sk-...
-    ```
-3.  **Run:**
-    ```bash
-    cargo run --release
-    ```
-    Access the platform at: `http://localhost:3000`
+#### Introduction: Cognitive Intelligence Engine
+**LaMuralla Health** is an advanced RAG (Retrieval-Augmented Generation) engine that transforms unstructured clinical/social text into a **Knowledge Graph**. It uses a strict ontology (*Person, Condition, Intervention, Resource, Outcome*) to structure unstructured data and enable complex AI reasoning.
+
+#### 🛡️ Security Architecture (New v2.0)
+The system has been hardened to meet data protection standards and production deployment needs:
+1.  **RBAC (Role-Based Access Control):**
+    *   **Admin:** Full capabilities (Data Ingestion, AI Configuration, Graph Management).
+    *   **User (Professional):** Read-only access (Chat Assistant, Visualization, Export).
+2.  **Robust Authentication:**
+    *   Password hashing using **Bcrypt**.
+    *   Stateless sessions via **JWT (JSON Web Tokens)**.
+3.  **Session Protection:**
+    *   Signed cookies with `HttpOnly`, `Secure`, and `SameSite=Strict` attributes to prevent XSS and CSRF attacks.
+4.  **Active Defense:**
+    *   **Rate Limiting:** Protection against brute-force and DoS attacks.
+    *   **Secure Headers:** Strict HTTP headers to prevent Clickjacking and sniffing.
+
+#### ✨ Key Features
+1.  **Hybrid GraphRAG:** Vector search + Graph traversal for deep contextual answers.
+2.  **Inference Engine:** Deduces implicit relationships (e.g., Transitivity between participation and health outcomes).
+3.  **Interoperability:** Native export to **JSON-LD** and **RDF/Turtle** (Semantic Web).
+4.  **Performance:** Backend written in **Rust (Axum)**, ensuring memory safety and speed.
+
+#### 🚀 Deployment (Docker & Render)
+
+The project is Dockerized for easy deployment on platforms like Render or Kubernetes.
+
+**Required Environment Variables:**
+```env
+# Server
+PORT=3000
+RUST_LOG=info
+JWT_SECRET=super_secret_key_base64
+
+# Database (Neo4j AuraDB or Local)
+NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASS=your_password
+
+# Initial Credentials
+ADMIN_USER=admin
+ADMIN_PASS=secure_password
+
+# Artificial Intelligence
+AI_PROVIDER=openai
+AI_API_KEY=sk-...
+AI_MODEL=gpt-4o
+```
+
+**Local Run:**
+```bash
+cargo run --release
+```
 
 ---
 
 <a name="ca"></a>
 ## 🏴󠁥󠁳󠁣󠁴󠁿 Català
 
-### 🏥 Introducció: Tecnologia pel Model de Recuperació
-**LaMuralla Health** no és simplement un gestor documental; és un **Motor d'Intel·ligència Cognitiva** dissenyat específicament per a l'àmbit de la **Salut Mental Comunitària**.
+### ❤️ Pel Sector Social: Què és LaMuralla?
+> *"Transformant històries de vida en evidència per a la recuperació."*
 
-En un sector on la informació qualitativa (notes d'evolució, memòries de tallers, dinàmiques de grups) és vital però difícil d'estructurar, aquesta eina permet transformar text lliure en un **Graf de Coneixement** viu. El seu objectiu principal és visibilitzar les connexions invisibles del **Model de Recuperació**: vinculant *Intervencions* (ex. Club Social) amb *Resultats* (ex. Empoderament, Inclusió), facilitant així una presa de decisions basada en l'evidència psicosocial i no només en el diagnòstic clínic.
+Si treballes en **salut mental, treball social o integració comunitària**, saps que la part més important de la teva feina queda escrita en notes d'evolució, memòries de tallers i observacions diàries. No obstant això, aquesta informació sovint es perd o és difícil d'analitzar en conjunt.
 
-### ✨ Capacitats Principals
-1.  **Ontologia Especialitzada:** El sistema aplica una estructura ontològica estricta (*Persona, Condició, Intervenció, Recurs Comunitari, Resultat*) per organitzar la informació.
-2.  **RAG Híbrid (GraphRAG):** Combina cerca vectorial (similitud semàntica) amb navegació de grafs per respondre preguntes complexes amb context profund.
-3.  **Motor d'Inferència:** Un mòdul d'IA analitza el graf per descobrir relacions implícites (ex. "Si A participa en B i B promou C, aleshores A està treballant en C").
-4.  **Interoperabilitat Semàntica:** Capacitat nativa per exportar el coneixement adquirit en format **JSON-LD**, permetent la integració amb altres sistemes de salut i estàndards de dades obertes.
-5.  **Privacitat i Rendiment:** Backend d'alt rendiment escrit en **Rust**, garantint velocitat i seguretat de dades.
+**LaMuralla Health** és un assistent intel·ligent que llegeix i "comprèn" aquests textos. No només guarda la informació, sinó que **connecta els punts**:
+*   Detecta automàticament si un usuari que assisteix al *Club Social* (Intervenció) millora la seva *Autoestima* (Resultat).
+*   Et permet preguntar: *"Quines activitats estan generant més vincle comunitari?"*
+*   Ajuda a justificar decisions basant-se en l'evidència real del dia a dia, donant suport al **Model de Recuperació**.
 
-### 🛠️ Pila Tecnològica
-*   **Nucli:** Rust (Axum, Tokio).
-*   **Base de Dades:** Neo4j (Emmagatzematge híbrid: Vectorial + Graf).
-*   **IA & LLM:** Rig-Core (Orquestració) + OpenAI/Groq.
-*   **Frontend:** Tera (SSR), Bootstrap 5, Vis.js (Visualització interactiva).
+---
 
-### 🚀 Instal·lació Ràpida
+### 💻 Documentació Tècnica
 
-1.  **Requisits:** Tenir instal·lat Rust, Docker (opcional) i una instància de Neo4j.
-2.  **Configuració:**
-    Crea un fitxer `.env`:
-    ```env
-    NEO4J_URI=bolt://localhost:7687
-    NEO4J_USER=neo4j
-    NEO4J_PASS=la_teva_contrasenya
-    AI_API_KEY=sk-...
-    ```
-3.  **Execució:**
-    ```bash
-    cargo run --release
-    ```
-    Accedeix a la plataforma a: `http://localhost:3000`
+#### Introducció: Motor d'Intel·ligència Cognitiva
+**LaMuralla Health** és un motor RAG (Retrieval-Augmented Generation) avançat que transforma text lliure clínic/social en un **Graf de Coneixement**. Utilitza una ontologia estricta (*Persona, Condició, Intervenció, Recurs, Resultat*) per estructurar dades no estructurades i permetre raonament complex mitjançant IA.
+
+#### 🛡️ Arquitectura de Seguretat (Nova v2.0)
+El sistema ha estat fortificat per complir amb estàndards de protecció de dades i desplegament en producció:
+1.  **RBAC (Control d'Accés Basat en Rols):**
+    *   **Administrador:** Capacitat total (Ingesta de documents, Configuració d'IA, Gestió del Graf).
+    *   **Usuari (Professional):** Accés de només lectura (Xat Assistent, Visualització, Exportació).
+2.  **Autenticació Robusta:**
+    *   Hashing de contrasenyes amb **Bcrypt**.
+    *   Sessions *stateless* mitjançant **JWT (JSON Web Tokens)**.
+3.  **Protecció de Sessió:**
+    *   Cookies signades amb atributs `HttpOnly`, `Secure` i `SameSite=Strict` per prevenir atacs XSS i CSRF.
+4.  **Defensa Activa:**
+    *   **Rate Limiting:** Protecció contra atacs de força bruta i DoS.
+    *   **Secure Headers:** Capçaleres HTTP estrictes per prevenir Clickjacking i sniffing.
+
+#### ✨ Capacitats Principals
+1.  **GraphRAG Híbrid:** Cerca vectorial + Navegació de grafs per a respostes contextuals profundes.
+2.  **Motor d'Inferència:** Dedueix relacions implícites (ex. Transitivitat entre participació i millora de salut).
+3.  **Interoperabilitat:** Exportació nativa a **JSON-LD** i **RDF/Turtle** (Web Semàntica).
+4.  **Rendiment:** Backend escrit en **Rust (Axum)**, garantint seguretat de memòria i velocitat.
+
+#### 🚀 Desplegament (Docker & Render)
+
+El projecte està dockeritzat per a un desplegament senzill en plataformes com Render o Kubernetes.
+
+**Variables d'Entorn Requerides:**
+```env
+# Servidor
+PORT=3000
+RUST_LOG=info
+JWT_SECRET=super_secret_key_base64
+
+# Base de Dades (Neo4j AuraDB o Local)
+NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASS=la_teva_contrasenya
+
+# Credencials Inicials
+ADMIN_USER=admin
+ADMIN_PASS=contrasenya_segura
+
+# Intel·ligència Artificial
+AI_PROVIDER=openai
+AI_API_KEY=sk-...
+AI_MODEL=gpt-4o
+```
+
+**Execució Local:**
+```bash
+cargo run --release
+```
 
 ---
 

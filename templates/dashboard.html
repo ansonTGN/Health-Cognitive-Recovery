@@ -41,7 +41,7 @@
     }
     .brand-text { font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; }
 
-    /* --- Graph HUD (Updated for Ontology) --- */
+    /* --- Graph HUD --- */
     .graph-hud {
         position: absolute;
         top: 20px; left: 20px;
@@ -152,9 +152,26 @@
         <i class="fa-solid fa-heart-pulse text-primary"></i>
         <span class="brand-text fw-bold text-white">LaMuralla <span class="opacity-50 fw-light">Mental Health Core</span></span>
     </div>
-    <div class="d-flex gap-3 text-xs text-muted">
+    
+    <!-- PERFIL DE USUARIO Y CONFIGURACIÓN -->
+    <div class="d-flex gap-3 text-xs text-muted align-items-center">
+        <!-- Rol (Admin/User) -->
+        <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-25">
+            {{ role }}
+        </span>
+        
+        <!-- Nombre de Usuario -->
+        <span class="fw-bold text-light">{{ username }}</span>
+        
+        <div class="vr opacity-25 bg-light"></div>
+
+        <!-- Modelo IA -->
         <span><i class="fa-solid fa-server me-1"></i> {{ config.model_name }}</span>
-        <a href="/logout" class="text-secondary hover-text-white transition"><i class="fa-solid fa-power-off"></i></a>
+        
+        <!-- Logout -->
+        <a href="/logout" class="text-secondary hover-text-white transition" title="Cerrar Sesión">
+            <i class="fa-solid fa-power-off"></i>
+        </a>
     </div>
 </nav>
 
@@ -199,7 +216,12 @@
         <!-- Tabs Header -->
         <ul class="nav nav-tabs nav-tabs-custom px-3 bg-white border-bottom" role="tablist">
             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-chat">Asistente</button></li>
+            
+            <!-- RBAC: SOLO MOSTRAR PESTAÑA SI ES ADMIN -->
+            {% if role == "Admin" %}
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ingest">Datos</button></li>
+            {% endif %}
+            
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-details">Detalles</button></li>
         </ul>
 
@@ -215,7 +237,7 @@
                             <span class="fw-bold text-xs text-uppercase tracking-wide text-muted">La Muralla</span>
                         </div>
                         <div class="md-content text-sm">
-                            Hola. Soy tu especialista en Salud Mental Comunitaria. Puedo analizar casos, sugerir intervenciones o encontrar patrones de recuperación en tus documentos.
+                            Hola {{ username }}. Soy tu especialista en Salud Mental Comunitaria. Puedo analizar casos, sugerir intervenciones o encontrar patrones de recuperación en tus documentos.
                         </div>
                     </div>
                 </div>
@@ -234,7 +256,8 @@
                 </div>
             </div>
 
-            <!-- 2. INGEST & TOOLS TAB -->
+            <!-- 2. INGEST & TOOLS TAB (RBAC PROTECTED CONTENT) -->
+            {% if role == "Admin" %}
             <div class="tab-pane fade p-4" id="tab-ingest">
                 <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-database me-2"></i>Ingesta de Conocimiento</h6>
                 
@@ -299,6 +322,7 @@
                     </div> 
                 </div>
             </div>
+            {% endif %}
 
             <!-- 3. DETAILS TAB -->
             <div class="tab-pane fade p-4" id="tab-details">
@@ -332,7 +356,6 @@
 {% block scripts %}
 <script>
     // --- CONFIGURACIÓN DE COLORES ONTOLÓGICOS ---
-    // Mapeo directo de la Ontología de Salud Mental definida en el backend
     const ONTOLOGY_COLORS = {
         'Person': '#3b82f6',            // Blue (Usuarios, Staff)
         'Condition': '#ef4444',         // Red (Problemas)
@@ -343,7 +366,6 @@
         'Unknown': '#94a3b8'            // Slate
     };
     
-    // Configuración visual de enlaces
     const EDGE_COLOR = 'rgba(148, 163, 184, 0.4)';
     const INFERENCE_COLOR = '#f43f5e'; // Rose
 
@@ -355,20 +377,21 @@
         setupTabListeners(); 
     });
 
-    // --- 1. VIS.JS GRAPH ENGINE (ADAPTADO) ---
+    // --- 1. VIS.JS GRAPH ENGINE ---
     async function loadGraph() {
         try {
             const res = await fetch('/api/graph');
+            
+            // Check Session
+            if (res.status === 401) { window.location.href = "/"; return; }
+
             const data = await res.json();
             
-            // Transformación de nodos basada en Categoría Ontológica
             const nodes = data.nodes.map(n => {
                 const category = n.group || 'Unknown';
                 const color = ONTOLOGY_COLORS[category] || ONTOLOGY_COLORS['Unknown'];
-                
-                // Determinar forma basada en tipo
                 let shape = 'dot';
-                if (category === 'Person') shape = 'dot'; // o 'icon' si tuviéramos FontAwesome en canvas
+                if (category === 'Person') shape = 'dot'; 
                 if (category === 'CommunityResource') shape = 'hexagon';
                 if (category === 'Condition') shape = 'diamond';
                 
@@ -434,13 +457,13 @@
         const extensions = { 'jsonld': 'jsonld', 'turtle': 'ttl', 'graphml': 'graphml' };
         const ext = extensions[format];
     
-        // Feedback visual simple (usando toast o alert por brevedad)
         const btnGroup = document.querySelector('.btn-group button');
         const originalText = btnGroup.innerHTML;
         btnGroup.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando...';
     
         try {
             const res = await fetch(`/api/export?format=${format}`);
+            if (res.status === 401) { window.location.href = "/"; return; }
             if(!res.ok) throw new Error("Error en exportación");
         
             const blob = await res.blob();
@@ -505,7 +528,6 @@
         void contentDiv.offsetWidth; 
         contentDiv.classList.add('animate__fadeIn');
         
-        // Estilo de badge según ontología
         const badgeEl = document.getElementById('detail-type');
         badgeEl.innerText = node.group.toUpperCase();
         badgeEl.style.backgroundColor = ONTOLOGY_COLORS[node.group] || '#64748b';
@@ -522,7 +544,6 @@
             ul.innerHTML = connectedEdges.map(e => {
                 const neighborId = e.from === nodeId ? e.to : e.from;
                 const neighborNode = allNodesData.get(neighborId);
-                // Color punto vecino
                 const nColor = neighborNode ? (ONTOLOGY_COLORS[neighborNode.group] || '#ccc') : '#ccc';
                 
                 return `<li class="list-group-item px-0 py-1 d-flex justify-content-between border-bottom border-light">
@@ -537,7 +558,6 @@
     }
 
     // --- 4. CHAT & INGEST LOGIC ---
-    // (Mantenido igual que versión anterior pero asegurando colores en highlight)
     function highlightSource(index) {
         const source = currentSources.find(s => s.index === index);
         if(!source) return;
@@ -546,7 +566,6 @@
         const updateArray = [];
         allNodesData.forEach(node => {
             if(conceptIds.includes(node.id)) {
-                // Highlight con color original pero más brillante o borde rojo
                 updateArray.push({ id: node.id, opacity: 1, size: 30, borderWidth: 4, color: { border: '#fff' } });
             } else {
                 updateArray.push({ id: node.id, opacity: 0.1 });
@@ -561,9 +580,6 @@
     }
     
     function resetGraphHighlight() {
-        // Restaurar estado visual original (usando loadGraph logic implicitamente al resetear updates)
-        // Vis.js no tiene "reset" per se, hay que re-mapear o guardar estado inicial.
-        // Simplificación: Recargar colores desde ONTOLOGY_COLORS
         const updateArray = [];
         allNodesData.forEach(node => {
             updateArray.push({ 
@@ -619,6 +635,15 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({message: text}) 
             });
+
+            // Security Checks
+            if (res.status === 401) { window.location.href = "/"; return; }
+            if (res.status === 403) { 
+                document.getElementById(loadingId).remove();
+                alert("Acceso denegado."); 
+                return; 
+            }
+
             const data = await res.json();
             document.getElementById(loadingId).remove();
             currentSources = data.sources || [];
@@ -673,6 +698,15 @@
         
         try {
              const response = await fetch('/api/ingest', { method: 'POST', body: formData });
+             
+             // Security Checks
+             if (response.status === 401) { window.location.href = "/"; return; }
+             if (response.status === 403) { 
+                 alert("⛔ ACCESO DENEGADO: Solo administradores.");
+                 btn.disabled = false;
+                 return;
+             }
+
              const reader = response.body.getReader();
              const decoder = new TextDecoder();
              while(true) {
@@ -700,6 +734,9 @@
         resDiv.innerHTML = '<div class="spinner-border spinner-border-sm text-dark"></div>';
         try {
             const res = await fetch('/api/reasoning/run', { method: 'POST' });
+            
+            if (res.status === 401) { window.location.href = "/"; return; }
+
             const data = await res.json();
             resDiv.innerHTML = `<span class="text-success fw-bold">${data.length} Inferencias</span>`;
             if(data.length > 0) reloadGraph();
