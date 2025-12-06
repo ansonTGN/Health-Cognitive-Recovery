@@ -28,7 +28,7 @@ impl Neo4jRepo {
 impl KGRepository for Neo4jRepo {
     
     // =========================================================
-    // 1. GESTIÓN DE SEGURIDAD (NUEVO)
+    // 1. GESTIÓN DE SEGURIDAD
     // =========================================================
     
     async fn create_user(&self, user: User) -> Result<(), AppError> {
@@ -67,32 +67,65 @@ impl KGRepository for Neo4jRepo {
     }
 
     async fn ensure_admin_exists(&self, username: &str, hash: &str) -> Result<(), AppError> {
-        let check = query("MATCH (u:User {role: 'Admin'}) RETURN count(u) as c");
-        let mut stream = self.graph.execute(check).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
-        
-        let count: i64 = if let Ok(Some(row)) = stream.next().await {
-            row.get("c").unwrap_or(0)
-        } else { 0 };
+        tracing::info!("🔐 Verificando/Actualizando credenciales para admin: '{}'", username);
 
-        if count == 0 {
-            let u = User {
-                id: Uuid::new_v4().to_string(),
-                username: username.to_string(),
-                password_hash: hash.to_string(),
-                role: UserRole::Admin,
+        // Usamos MERGE para buscar por nombre de usuario.
+        // Si no existe, lo crea. Si existe, lo selecciona.
+        // ON CREATE: Asigna ID y rol.
+        // SET: Siempre actualiza el hash de la contraseña (Upsert).
+        let q = query("
+            MERGE (u:User {username: $username})
+            ON CREATE SET u.id = randomUUID(), u.role = 'Admin'
+            SET u.password = $hash, u.role = 'Admin'
+            RETURN u
+        ")
+        .param("username", username)
+        .param("hash", hash);
+
+        self.graph.run(q).await.map_err(|e| {
+            tracing::error!("Error actualizando admin: {:?}", e);
+            AppError::DatabaseError(e.to_string())
+        })?;
+
+        tracing::info!("✅ Usuario administrador '{}' sincronizado correctamente.", username);
+        Ok(())
+    }
+
+    // 👇 NUEVA IMPLEMENTACIÓN: LISTAR USUARIOS
+    async fn get_all_users(&self) -> Result<Vec<User>, AppError> {
+        let q = query("MATCH (u:User) RETURN u.id, u.username, u.role ORDER BY u.role, u.username");
+        let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        
+        let mut users = Vec::new();
+        while let Ok(Some(row)) = stream.next().await {
+            let role_str: String = row.get("u.role").unwrap_or("User".to_string());
+            let role = match role_str.as_str() {
+                "Admin" => UserRole::Admin,
+                _ => UserRole::User,
             };
-            self.create_user(u).await?;
-            tracing::info!("🛡️ Admin user created from environment variables.");
+            
+            users.push(User {
+                id: row.get("u.id").unwrap_or_default(),
+                username: row.get("u.username").unwrap_or_default(),
+                password_hash: String::new(), // Por seguridad no devolvemos el hash
+                role,
+            });
         }
+        Ok(users)
+    }
+
+    // 👇 NUEVA IMPLEMENTACIÓN: BORRAR USUARIO
+    async fn delete_user(&self, username: &str) -> Result<(), AppError> {
+        let q = query("MATCH (u:User {username: $u}) DELETE u").param("u", username);
+        self.graph.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
     // =========================================================
-    // 2. CONFIGURACIÓN E ÍNDICES (Actualizado)
+    // 2. CONFIGURACIÓN E ÍNDICES
     // =========================================================
 
     async fn create_indexes(&self, dim: usize) -> Result<(), AppError> {
-        // Índice Vectorial
         let q = format!(
             "CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS FOR (c:DocumentChunk) ON (c.embedding) \
              OPTIONS {{indexConfig: {{ `vector.dimensions`: {}, `vector.similarity_function`: 'cosine' }} }}", 
@@ -100,11 +133,9 @@ impl KGRepository for Neo4jRepo {
         );
         self.graph.run(query(&q)).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         
-        // Restricciones de Unicidad
         self.graph.run(query("CREATE CONSTRAINT entity_name IF NOT EXISTS FOR (e:Entity) REQUIRE e.name IS UNIQUE")).await
             .map_err(|e| AppError::DatabaseError(e.to_string()))?;
             
-        // NUEVO: Restricción para usuarios
         self.graph.run(query("CREATE CONSTRAINT user_unique IF NOT EXISTS FOR (u:User) REQUIRE u.username IS UNIQUE")).await
              .map_err(|e| AppError::DatabaseError(e.to_string()))?;
              
@@ -143,7 +174,6 @@ impl KGRepository for Neo4jRepo {
             let q = query(&cypher).param("source", rel.source.as_str()).param("target", rel.target.as_str());
             txn.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         }
-        // Conectar Documento con Entidades
         let q_link = query("MATCH (c:DocumentChunk {id: $cid}), (e:Entity) WHERE e.name IN $names MERGE (c)-[:MENTIONS]->(e)");
         let names: Vec<String> = data.entities.into_iter().map(|e| e.name).collect();
         txn.run(q_link.param("cid", chunk_id.to_string()).param("names", names)).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -192,7 +222,7 @@ impl KGRepository for Neo4jRepo {
         Ok(results)
     }
 
-async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphDataResponse, AppError> {
+    async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphDataResponse, AppError> {
         let q = query("MATCH (center:Entity {name: $name})-[r]-(neighbor:Entity) RETURN center.name, center.category, type(r) as rel, startNode(r) = center as is_source, neighbor.name, neighbor.category LIMIT 100").param("name", concept_name);
         let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         let mut nodes_vec = Vec::new();
@@ -209,24 +239,14 @@ async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphData
             let n_name: String = row.get("neighbor.name").unwrap_or_default();
             let n_cat: String = row.get("neighbor.category").unwrap_or_else(|_| "Concept".to_string());
 
-            // CORRECCIÓN: Clonar id para no perder la propiedad de c_name
             if unique_nodes.insert(c_name.clone()) { 
-                nodes_vec.push(VisNode { id: c_name.clone(), label: c_name, group: c_cat }); 
+                nodes_vec.push(VisNode { id: c_name.clone(), label: c_name.clone(), group: c_cat }); 
             }
-            
             if unique_nodes.insert(n_name.clone()) { 
-                nodes_vec.push(VisNode { id: n_name.clone(), label: n_name, group: n_cat }); 
+                nodes_vec.push(VisNode { id: n_name.clone(), label: n_name.clone(), group: n_cat }); 
             }
             
-            // Aquí usamos los últimos nodos insertados, pero como unique_nodes ya los tiene,
-            // podemos necesitar recuperarlos de los valores originales del row si los hemos movido.
-            // Para simplificar, obtenemos los valores de nuevo del row o usamos clones arriba.
-            // La forma más segura en Rust para esto es clonar explícitamente cuando se necesita:
-            
-            let c_name_edge: String = row.get("center.name").unwrap_or_default();
-            let n_name_edge: String = row.get("neighbor.name").unwrap_or_default();
-
-            let (from, to) = if is_source { (c_name_edge, n_name_edge) } else { (n_name_edge, c_name_edge) };
+            let (from, to) = if is_source { (c_name, n_name) } else { (n_name, c_name) };
             edges_vec.push(VisEdge { from, to, label: rel_type });
         }
         
@@ -236,7 +256,6 @@ async fn get_concept_neighborhood(&self, concept_name: &str) -> Result<GraphData
              if let Ok(Some(row)) = stream_fallback.next().await {
                 let name: String = row.get("center.name").unwrap_or_default();
                 let cat: String = row.get("center.category").unwrap_or_else(|_| "Concept".to_string());
-                // CORRECCIÓN: Clonar
                 nodes_vec.push(VisNode { id: name.clone(), label: name, group: cat });
              }
         }

@@ -1,0 +1,12 @@
+<div class="tab-pane fade h-100 overflow-auto p-4" id="tab-team">
+    <h5 class="fw-bold mb-4" id="t-user-mgmt">Gestión de Usuarios</h5>
+    <div class="card border-0 shadow-sm mb-4 bg-primary bg-opacity-10"><div class="card-body">
+        <h6 class="text-xs fw-bold text-primary mb-3" id="t-new-prof">NUEVO PROFESIONAL</h6>
+        <form onsubmit="createUser(event)">
+            <div class="row g-2 mb-2"><div class="col-7"><input type="text" id="newUsername" class="form-control form-control-sm border-0" placeholder="Usuario" required></div><div class="col-5"><select id="newRole" class="form-select form-select-sm border-0"><option value="User">Usuario</option><option value="Admin">Admin</option></select></div></div>
+            <input type="password" id="newPassword" class="form-control form-control-sm mb-2 border-0" placeholder="Contraseña" required>
+            <button type="submit" class="btn btn-primary btn-sm w-100" id="t-btn-register">Registrar</button>
+        </form>
+    </div></div>
+    <div class="border rounded bg-white"><div class="p-2 border-bottom bg-light text-xs fw-bold text-muted" id="t-active-users">USUARIOS ACTIVOS</div><ul class="list-group list-group-flush" id="userList"><li class="list-group-item text-center p-3 text-muted text-xs">Cargando...</li></ul></div>
+</div>

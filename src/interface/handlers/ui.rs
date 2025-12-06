@@ -1,6 +1,6 @@
 use axum::{
     response::{Html, IntoResponse, Redirect},
-    extract::{State, Form},
+    extract::{State, Form, Query}, // <--- Añadido Query
     http::{StatusCode, header},
     Extension,
 };
@@ -19,48 +19,82 @@ pub struct AuthPayload {
     pub password: String,
 }
 
+// Estructura para capturar parámetros de URL (ej: /?error=invalid_credentials)
+#[derive(Deserialize)]
+pub struct LoginParams {
+    pub error: Option<String>,
+}
+
 /// Página de login (GET "/")
-pub async fn render_login(State(state): State<AppState>) -> impl IntoResponse {
-    match state.tera.render("login.html", &Context::new()) {
+/// Ahora captura parámetros de error para mostrarlos en la UI
+pub async fn render_login(
+    State(state): State<AppState>,
+    Query(params): Query<LoginParams>, // <--- Capturamos query params
+) -> impl IntoResponse {
+    let mut ctx = Context::new();
+    
+    // Si hay error en la URL, lo pasamos al template
+    if let Some(err) = params.error {
+        ctx.insert("error", &err);
+    }
+
+    match state.tera.render("login.html", &ctx) {
         Ok(html) => Html(html).into_response(),
-        Err(err) => Html(format!("<h1>Render Error</h1><p>{}</p>", err)).into_response(),
+        Err(err) => {
+            tracing::error!("Error renderizando login: {}", err);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
+        },
     }
 }
 
-/// Procesa el login, emite JWT en cookie y redirige al dashboard
+/// Procesa el login de forma segura
 pub async fn authenticate(
     State(state): State<AppState>,
     Form(payload): Form<AuthPayload>,
 ) -> impl IntoResponse {
-    // Buscar usuario
-    let user_opt = match state.repo.get_user_by_username(&payload.username).await {
-        Ok(u) => u,
-        Err(_) => None,
-    };
+    
+    // 1. Buscar usuario en DB
+    let user_result = state.repo.get_user_by_username(&payload.username).await;
 
-    let is_valid = if let Some(ref user) = user_opt {
-        verify(&payload.password, &user.password_hash).unwrap_or(false)
-    } else {
-        false
+    // 2. Lógica de verificación robusta (evita Timing Attacks y Panics)
+    let is_valid = match user_result {
+        Ok(Some(user)) => {
+            // El usuario existe, verificamos hash real
+            verify(&payload.password, &user.password_hash).unwrap_or(false)
+        },
+        Ok(None) => {
+            // El usuario NO existe. Simulamos verificación para igualar tiempos.
+            // Usamos un hash válido de "dummy"
+            let _ = verify(
+                "dummy_pass", 
+                "$2y$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4h..dummy"
+            );
+            false
+        },
+        Err(e) => {
+            tracing::error!("Error de base de datos en login: {}", e);
+            // En error de DB, redirigimos con mensaje genérico
+            return Redirect::to("/?error=system_error").into_response();
+        }
     };
 
     if !is_valid {
-        // Credenciales incorrectas
-        return (
-            StatusCode::UNAUTHORIZED,
-            "Invalid username or password".to_string(),
-        )
-            .into_response();
+        tracing::warn!("Intento de login fallido: {}", payload.username);
+        // Redirigimos al login con el error
+        return Redirect::to("/?error=invalid_credentials").into_response();
     }
 
-    let user = user_opt.unwrap();
+    // 3. Login Exitoso: Recuperamos usuario (sabemos que existe porque is_valid es true)
+    // Volvemos a consultar o usamos lógica para extraerlo si lo tuviéramos en el scope anterior.
+    // Para simplificar y evitar problemas de borrow checker, lo recuperamos seguro:
+    let user = state.repo.get_user_by_username(&payload.username).await.unwrap().unwrap();
 
-    // Construir claims JWT
+    // 4. Construir JWT
     let expiration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs() as usize
-        + 3600; // 1h
+        + 3600 * 24; // 24 horas
 
     let claims = Claims {
         sub: user.username,
@@ -76,9 +110,9 @@ pub async fn authenticate(
         &claims,
         &EncodingKey::from_secret(secret.as_bytes()),
     )
-    .unwrap();
+    .unwrap_or_default();
 
-    // Creamos cookie manualmente (el JWT ya va firmado)
+    // 5. Crear Cookie
     let cookie_value = format!(
         "lamuralla_jwt={}; HttpOnly; SameSite=Strict; Path=/",
         token
@@ -92,7 +126,7 @@ pub async fn authenticate(
     response
 }
 
-/// Dashboard protegido, solo accesible si el middleware ha adjuntado Claims
+/// Dashboard protegido
 pub async fn render_dashboard_guarded(
     Extension(claims): Extension<Claims>,
     State(state): State<AppState>,

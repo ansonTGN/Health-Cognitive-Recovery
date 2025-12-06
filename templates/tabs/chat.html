@@ -1,0 +1,20 @@
+<div class="tab-pane fade show active h-100 d-flex flex-column" id="tab-chat">
+    <div id="chatArea" class="chat-container">
+        <div class="msg-bubble msg-ai animate__animated animate__fadeIn">
+            <div class="d-flex align-items-center gap-2 mb-2 border-bottom pb-2">
+                <i class="fa-solid fa-robot text-primary"></i>
+                <span class="fw-bold text-xs text-uppercase text-primary-custom" id="chat-bot-name">Asistente Clínico</span>
+            </div>
+            <div class="text-sm" id="chat-welcome">
+                Hola <strong>{{ username }}</strong>. Analizo historias clínicas y datos sociales.<br>
+                <em class="text-muted text-xs" id="chat-example">Ej: "¿Qué impacto tiene el taller de arte en la ansiedad?"</em>
+            </div>
+        </div>
+    </div>
+    <div class="p-3 bg-white border-top shadow-sm z-3">
+        <div class="input-group">
+            <textarea id="userPrompt" class="form-control border bg-light text-sm" rows="2" placeholder="..." style="resize:none" onkeypress="handleEnter(event)"></textarea>
+            <button class="btn btn-primary-custom px-3" onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+</div>

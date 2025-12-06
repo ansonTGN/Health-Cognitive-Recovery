@@ -1,0 +1,169 @@
+<script>
+    // --- Configuración Visual ---
+    const COLORS = { Person:'#1565c0', Condition:'#c62828', Intervention:'#2e7d32', Outcome:'#6a1b9a', CommunityResource:'#00838f', Concept:'#455a64', Unknown:'#9e9e9e' };
+    const ICONS = { Person:'\uf007', Condition:'\uf4fd', Intervention:'\uf0f0', Outcome:'\uf201', CommunityResource:'\uf4c4', Concept:'\uf0eb', Unknown:'\uf128' };
+    let network, allNodesData, allEdgesData, currentFocusNode = null;
+    let currentLang = localStorage.getItem('lamuralla_lang') || 'es';
+
+    // --- Traducciones Dinámicas (Dashboard) ---
+    const T = {
+        es: { sub:'Motor de Recuperación Cognitiva', chat:'Asistente', card:'Ficha', tools:'Utilidades', data:'Datos', l_pers:'Persona', l_cond:'Condición', l_int:'Intervención', l_out:'Resultado', l_res:'Recurso', 't-arch-by':'Arquitectura por', 't-sel-node':'Selecciona un nodo', 't-links':'CONEXIONES', 't-relevance':'RELEVANCIA', 't-rels':'RELACIONES', 't-btn-isolate':'Aislar Contexto', 't-btn-close-ficha':'Cerrar Ficha', 't-user-mgmt':'Gestión de Usuarios', 't-new-prof':'NUEVO PROFESIONAL', 't-btn-register':'Registrar', 't-active-users':'USUARIOS ACTIVOS', 't-upload-h6':'NUEVA EVIDENCIA', 't-btn-process':'PROCESAR DATOS' },
+        ca: { sub:'Motor de Recuperació Cognitiva', chat:'Assistent', card:'Fitxa', tools:'Utilitats', data:'Dades', l_pers:'Persona', l_cond:'Condició', l_int:'Intervenció', l_out:'Resultat', l_res:'Recurs', 't-arch-by':'Arquitectura per', 't-sel-node':'Selecciona un node', 't-links':'CONNEXIONS', 't-relevance':'RELLEVÀNCIA', 't-rels':'RELACIONS', 't-btn-isolate':'Aïllar Context', 't-btn-close-ficha':'Tancar Fitxa', 't-user-mgmt':'Gestió d\'Usuaris', 't-new-prof':'NOU PROFESSIONAL', 't-btn-register':'Registrar', 't-active-users':'USUARIS ACTIUS', 't-upload-h6':'NOVA EVIDÈNCIA', 't-btn-process':'PROCESSAR DADES' },
+        en: { sub:'Cognitive Recovery Engine', chat:'Assistant', card:'Details', tools:'Tools', data:'Data', l_pers:'Person', l_cond:'Condition', l_int:'Intervention', l_out:'Outcome', l_res:'Resource', 't-arch-by':'Architecture by', 't-sel-node':'Select a node', 't-links':'LINKS', 't-relevance':'RELEVANCE', 't-rels':'RELATIONS', 't-btn-isolate':'Isolate Context', 't-btn-close-ficha':'Close Card', 't-user-mgmt':'User Management', 't-new-prof':'NEW PROFESSIONAL', 't-btn-register':'Register', 't-active-users':'ACTIVE USERS', 't-upload-h6':'NEW EVIDENCE', 't-btn-process':'PROCESS DATA' }
+    };
+
+    function setAppLanguage(lang) {
+        currentLang = lang;
+        localStorage.setItem('lamuralla_lang', lang);
+        
+        // Botones de Idioma
+        ['es','ca','en'].forEach(l => document.getElementById('btn-'+l).classList.remove('active'));
+        document.getElementById('btn-'+lang).classList.add('active');
+        
+        // Textos Clave
+        const t = T[lang];
+        if(!t) return;
+        document.getElementById('nav-subtitle').innerText = t.sub;
+        document.getElementById('t-arch-by').innerText = t['t-arch-by'];
+        
+        document.getElementById('t-tab-chat').innerHTML = `<i class="fa-regular fa-comments me-1"></i>${t.chat}`;
+        document.getElementById('t-tab-card').innerHTML = `<i class="fa-solid fa-file-medical me-1"></i>${t.card}`;
+        document.getElementById('t-tab-tools').innerHTML = `<i class="fa-solid fa-toolbox me-1"></i>${t.tools}`;
+        if(document.getElementById('t-tab-data')) document.getElementById('t-tab-data').innerHTML = `<i class="fa-solid fa-database me-1"></i>${t.data}`;
+        
+        // Leyenda
+        document.getElementById('t-legend').innerText = t.tools;
+        document.getElementById('l-person').innerText = t.l_pers;
+        document.getElementById('l-condition').innerText = t.l_cond;
+        document.getElementById('l-interv').innerText = t.l_int;
+        document.getElementById('l-outcome').innerText = t.l_out;
+        document.getElementById('l-resource').innerText = t.l_res;
+
+        // Ficha
+        document.getElementById('t-sel-node').innerText = t['t-sel-node'];
+        document.getElementById('t-links').innerText = t['t-links'];
+        document.getElementById('t-relevance').innerText = t['t-relevance'];
+        document.getElementById('t-rels').innerText = t['t-rels'];
+        document.getElementById('t-btn-isolate').innerHTML = `<i class="fa-solid fa-filter me-1"></i> ${t['t-btn-isolate']}`;
+        document.getElementById('t-btn-close-ficha').title = t['t-btn-close-ficha'];
+        
+        // Admin
+        if(document.getElementById('t-user-mgmt')) {
+            document.getElementById('t-user-mgmt').innerText = t['t-user-mgmt'];
+            document.getElementById('t-new-prof').innerText = t['t-new-prof'];
+            document.getElementById('t-btn-register').innerText = t['t-btn-register'];
+            document.getElementById('t-active-users').innerText = t['t-active-users'];
+            document.getElementById('t-upload-h6').innerText = t['t-upload-h6'];
+            document.getElementById('t-btn-process').innerText = t['t-btn-process'];
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { 
+        const lang = localStorage.getItem('lamuralla_lang') || 'es';
+        setAppLanguage(lang);
+        loadGraph(); 
+    });
+
+    // --- Graph Logic ---
+    async function loadGraph() {
+        document.getElementById('loading').style.display='flex';
+        try {
+            const res = await fetch('/api/graph');
+            if (res.status === 401) return window.location.href = "/";
+            const data = await res.json();
+            
+            const nodes = data.nodes.map(n => ({
+                id: n.id, label: n.label.length>15?n.label.substring(0,14)+'..':n.label, full:n.label, group:n.group,
+                shape:'icon', icon:{face:'"Font Awesome 6 Free"', code:ICONS[n.group]||'\uf128', weight:'900', size:30, color:COLORS[n.group]||'#999'},
+                font:{face:'Manrope', size:12, color:'#333', background:'rgba(255,255,255,0.8)'}
+            }));
+            const edges = data.edges.map(e => ({ from:e.from, to:e.to, color:{color:'#cfd8dc'}, arrows:'to' }));
+            
+            allNodesData = new vis.DataSet(nodes); allEdgesData = new vis.DataSet(edges);
+            network = new vis.Network(document.getElementById('network-container'), { nodes:allNodesData, edges:allEdgesData }, { interaction:{hover:true} });
+            network.on("click", p => p.nodes.length ? showDetails(p.nodes[0]) : null);
+        } catch(e) { console.error(e); } finally { document.getElementById('loading').style.display='none'; }
+    }
+
+    function showDetails(id) {
+        currentFocusNode = id;
+        const n = allNodesData.get(id);
+        if(!n) return;
+        new bootstrap.Tab(document.querySelector('#t-tab-card')).show();
+        document.getElementById('details-empty').classList.add('d-none');
+        document.getElementById('details-content').classList.remove('d-none');
+        document.getElementById('detail-title').innerText = n.full;
+        document.getElementById('detail-badge').innerText = n.group;
+        document.getElementById('detail-badge').style.background = COLORS[n.group];
+        
+        const rels = allEdgesData.get({filter: e => e.from===id || e.to===id});
+        document.getElementById('detail-degree').innerText = rels.length;
+        
+        const connList = document.getElementById('detail-connections');
+        connList.innerHTML = rels.map(r => {
+            const otherId = r.from === id ? r.to : r.from;
+            const otherNode = allNodesData.get(otherId);
+            const icon = otherNode ? ICONS[otherNode.group] : '\uf128';
+            const color = otherNode ? COLORS[otherNode.group] : '#999';
+            const arrowIcon = r.from === id ? 'fa-arrow-right' : 'fa-arrow-left';
+
+            return `
+                <div class="detail-connection-item">
+                    <span class="text-xs text-muted me-2">${r.label}</span>
+                    <span class="d-flex align-items-center">
+                        <i class="fa-solid ${arrowIcon} text-primary-custom text-xs me-2 opacity-50"></i>
+                        <span style="font-family:'Font Awesome 6 Free'; font-weight:900; color:${color}; margin-right: 5px;">${icon}</span>
+                        <span class="detail-entity-name" onclick="focusOnNode('${otherId}')">${otherId}</span>
+                    </span>
+                </div>
+            `;
+        }).join('');
+        
+        if (window.innerWidth < 992) toggleSidebar(); 
+    }
+    
+    function clearDetails() { document.getElementById('details-content').classList.add('d-none'); document.getElementById('details-empty').classList.remove('d-none'); currentFocusNode = null; }
+    function focusOnNode(id) { network.selectNodes([id]); network.focus(id, {scale:1.2, animation:true}); showDetails(id); }
+    function focusOnNodeContext() { if(currentFocusNode) network.fit({nodes:[currentFocusNode, ...network.getConnectedNodes(currentFocusNode)], animation:true}); }
+    
+    function visualizeSubgraph(str) {
+        const ids = str.split(',').filter(id => allNodesData.get(id));
+        if(ids.length>0) { network.selectNodes(ids); network.fit({nodes:ids, animation:true}); if(ids.length===1) showDetails(ids[0]); }
+    }
+    
+    async function sendChat() {
+        const txt = document.getElementById('userPrompt').value.trim(); if(!txt) return;
+        const chatArea = document.getElementById('chatArea'); chatArea.innerHTML+=`<div class="msg-bubble msg-user animate__animated animate__fadeInUp">${txt}</div>`;
+        document.getElementById('userPrompt').value=''; chatArea.scrollTop = chatArea.scrollHeight;
+        try {
+            const res = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:txt})});
+            const data = await res.json();
+            let html = marked.parse(data.response);
+            data.sources.forEach(src => { html = html.replace(`[${src.index}]`, `<span class="citation-ref" onclick="toggleSource('src-${src.index}'); visualizeSubgraph('${src.concepts.join(',')}')" title="Ver">${src.index}</span>`); });
+            let srcHtml = data.sources.map(src => `<div id="src-${src.index}" class="source-box animate__animated animate__fadeIn"><div class="d-flex justify-content-between mb-1"><strong class="text-xs text-uppercase text-primary-custom">Evidencia ${src.index}</strong><button class="btn btn-link p-0 text-muted text-xs text-decoration-none" onclick="visualizeSubgraph('${src.concepts.join(',')}')"><i class="fa-solid fa-eye me-1"></i>Ver Grafo</button></div><p class="m-0 fst-italic text-muted small">"...${src.short_content}..."</p></div>`).join('');
+            chatArea.innerHTML+=`<div class="msg-bubble msg-ai animate__animated animate__fadeIn"><div class="md-content">${html}</div><div class="mt-3">${srcHtml}</div></div>`; chatArea.scrollTop = chatArea.scrollHeight;
+        } catch(e) { chatArea.innerHTML+=`<div class="text-danger small p-2">Error de conexión.</div>`; }
+    }
+
+    function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
+    function toggleSource(id) { const el = document.getElementById(id); if(el) el.style.display = (el.style.display==='none'||el.style.display==='')?'block':'none'; }
+    function handleEnter(e) { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }}
+    function reloadGraph() { loadGraph(); }
+    function downloadGraph(format) { window.open(`/api/export?format=${format}`, '_blank'); }
+    function exportCanvasImage() { const canvas = document.querySelector('#network-container canvas'); const link = document.createElement('a'); link.download = 'lamuralla-grafo.png'; link.href = canvas.toDataURL('image/png', 1.0); link.click(); }
+
+    async function startIngestion() {
+        const fd = new FormData(); const txt = document.getElementById('ingestContent').value; const file = document.getElementById('ingestFile').files[0];
+        if(!txt && !file) return alert("Datos requeridos"); if(txt) fd.append('content', txt); if(file) fd.append('file', file);
+        document.getElementById('progressArea').classList.remove('d-none');
+        const res = await fetch('/api/ingest', {method:'POST', body:fd});
+        if(res.status===403) return alert("Admin required");
+        const r = res.body.getReader(); const log = document.getElementById('progressLog');
+        while(true) { const {done, value} = await r.read(); if(done) break; log.innerHTML+=`<div>${new TextDecoder().decode(value)}</div>`; log.scrollTop=log.scrollHeight; }
+        loadGraph();
+    }
+    async function loadUsers() { const res = await fetch('/api/admin/users'); if(res.ok) { const u = await res.json(); document.getElementById('userList').innerHTML=u.map(x=>`<li class="list-group-item d-flex justify-content-between py-2 align-items-center"><span class="fw-bold small">${x.username} <span class="badge bg-light text-muted border ms-2">${x.role}</span></span>${x.username!=='{{ username }}'?`<button onclick="deleteUser('${x.username}')" class="btn btn-sm text-danger"><i class="fa-solid fa-trash"></i></button>`:''}</li>`).join(''); } }
+    async function createUser(e) { e.preventDefault(); await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:document.getElementById('newUsername').value, password:document.getElementById('newPassword').value, role:document.getElementById('newRole').value})}); loadUsers(); }
+    async function deleteUser(u) { if(confirm('Borrar?')) { await fetch(`/api/admin/users/${u}`, {method:'DELETE'}); loadUsers(); } }
+    async function runReasoning() { /* Implementación de llamada a /api/reasoning/run */ }
+</script>

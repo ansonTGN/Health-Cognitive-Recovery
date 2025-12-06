@@ -36,6 +36,7 @@ use crate::interface::handlers::{
     chat,
     reasoning,
     export,
+    users, // <--- IMPORTADO
 };
 
 #[derive(OpenApi)]
@@ -60,7 +61,8 @@ use crate::interface::handlers::{
         ChatResponse,
         InferredRelation,
         ExportParams,
-        ExportFormat
+        ExportFormat,
+        // (Opcional) Agrega CreateUserRequest y UserDto aquí si quieres documentarlos
     )),
     tags((name = "lamuralla", description = "Mental Health API"))
 )]
@@ -109,10 +111,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = Arc::new(Graph::new(&uri, &user, &pass).await?);
     let repo = Arc::new(Neo4jRepo::new(graph.clone()));
 
-    // Crear índices vectoriales
     let _ = repo.create_indexes(embedding_dim).await;
 
-    // 3. Usuario admin por defecto
+    // 3. Usuario admin (Verifica/Crea el admin del .env)
     let admin_user = std::env::var("ADMIN_USER").unwrap_or("admin".to_string());
     let admin_pass = std::env::var("ADMIN_PASS").unwrap_or("admin123".to_string());
     let hashed_pass = hash(admin_pass, DEFAULT_COST)?;
@@ -128,41 +129,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tera: Arc::new(tera),
     };
 
-    // 5. Rutas públicas (login + swagger)
+    // 5. Rutas públicas
     let public_routes = Router::new()
         .route("/", get(ui::render_login).post(ui::authenticate))
         .merge(
             SwaggerUi::new("/swagger-ui")
                 .url("/api-docs/openapi.json", ApiDoc::openapi()),
-        );
+        )
+        .with_state(app_state.clone()); 
 
     // 6. Rutas de usuario autenticado
     let user_routes = Router::new()
         .route("/dashboard", get(ui::render_dashboard_guarded))
         .route("/api/graph", get(graph::get_graph))
-        .route(
-            "/api/graph/concept/{name}",
-            get(graph::get_concept_neighborhood),
-        )
+        .route("/api/graph/concept/{name}", get(graph::get_concept_neighborhood))
         .route("/api/chat", post(chat::chat_handler))
         .route("/api/export", get(export::export_knowledge_graph))
         .route("/api/reasoning/run", post(reasoning::run_reasoning))
-        .route_layer(middleware::from_fn(
+        .route_layer(middleware::from_fn_with_state(
+            app_state.clone(),
             crate::interface::middleware::auth_middleware,
-        ));
+        ))
+        .with_state(app_state.clone());
 
-    // 7. Rutas admin (ingest + config)
+    // 7. Rutas admin (ingest + config + USERS)
     let admin_routes = Router::new()
         .route("/api/admin/config", post(admin::update_config))
         .route("/api/ingest", post(ingest::ingest_document))
-        .route_layer(middleware::from_fn(
+        // NUEVAS RUTAS 👇
+        .route("/api/admin/users", get(users::list_users).post(users::create_user))
+        .route("/api/admin/users/:username", axum::routing::delete(users::delete_user))
+        .route_layer(middleware::from_fn_with_state(
+            app_state.clone(),
             crate::interface::middleware::require_admin,
         ))
-        .route_layer(middleware::from_fn(
+        .route_layer(middleware::from_fn_with_state(
+            app_state.clone(),
             crate::interface::middleware::auth_middleware,
-        ));
+        ))
+        .with_state(app_state.clone());
 
-    // 8. Router principal (SIN tower_governor)
+    // 8. Router principal
     let app = Router::new()
         .merge(public_routes)
         .merge(user_routes)
@@ -173,8 +180,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             HeaderValue::from_static("nosniff"),
         ))
         .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
-        .with_state(app_state);
+        .layer(CorsLayer::permissive());
 
     // 9. Lanzar servidor
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());

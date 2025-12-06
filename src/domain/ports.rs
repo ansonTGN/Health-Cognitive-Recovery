@@ -24,10 +24,14 @@ pub trait KGRepository: Send + Sync {
     async fn save_inferred_relations(&self, relations: Vec<InferredRelation>) -> Result<(), AppError>;
     async fn export_full_knowledge_graph(&self) -> Result<ExportedGraph, AppError>;  
 
-    // --- Capacidades Seguridad: Gestión de Identidad (NUEVO) ---
+    // --- Capacidades Seguridad: Gestión de Identidad ---
     async fn create_user(&self, user: User) -> Result<(), AppError>;
     async fn get_user_by_username(&self, username: &str) -> Result<Option<User>, AppError>;
     async fn ensure_admin_exists(&self, username: &str, hash: &str) -> Result<(), AppError>;
+    
+    // 👇 NUEVOS MÉTODOS PARA GESTIÓN DE USUARIOS
+    async fn get_all_users(&self) -> Result<Vec<User>, AppError>;
+    async fn delete_user(&self, username: &str) -> Result<(), AppError>;
 }
 
 #[async_trait]
