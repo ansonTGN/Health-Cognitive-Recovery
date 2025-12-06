@@ -151,9 +151,9 @@ impl DocumentTransmuter {
         let html_string = String::from_utf8(data.to_vec())
             .context("El HTML no es UTF-8 válido")?;
         
-        // Manejo del Result devuelto por html2text v0.16.4+
-        let text = html2text::from_read(html_string.as_bytes(), 80)
-            .map_err(|e| anyhow!("Error procesando HTML: {}", e))?;
+        // CORRECCIÓN: html2text::from_read devuelve String directamente (no Result)
+        // en versiones recientes, por lo que quitamos .map_err y envolvemos en Ok()
+        let text = html2text::from_read(html_string.as_bytes(), 80);
             
         Ok(text)
     }

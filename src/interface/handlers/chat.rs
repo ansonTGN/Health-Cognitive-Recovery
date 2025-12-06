@@ -1,5 +1,4 @@
 use axum::{Json, extract::State};
-use std::sync::Arc;
 use rig::{
     completion::Prompt, 
     providers::openai::{self}
@@ -22,7 +21,7 @@ use super::admin::AppState;
     tag = "chat"
 )]
 pub async fn chat_handler(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>, // <-- Sin Arc<>
     Json(payload): Json<ChatRequest>,
 ) -> Result<Json<ChatResponse>, AppError> {
     

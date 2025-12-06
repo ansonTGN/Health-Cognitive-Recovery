@@ -1,5 +1,4 @@
 use axum::{Json, extract::{State, Path}};
-use std::sync::Arc;
 use crate::domain::{models::GraphDataResponse, errors::AppError};
 use super::admin::AppState;
 
@@ -13,10 +12,9 @@ use super::admin::AppState;
     tag = "visualization"
 )]
 pub async fn get_graph(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>, // <-- Sin Arc<>
 ) -> Result<Json<GraphDataResponse>, AppError> {
     
-    // Llamada al repositorio para el grafo completo
     let graph_data = state.repo.get_full_graph().await?;
     
     Ok(Json(graph_data))
@@ -35,11 +33,10 @@ pub async fn get_graph(
     tag = "visualization"
 )]
 pub async fn get_concept_neighborhood(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>, // <-- Sin Arc<>
     Path(name): Path<String>,
 ) -> Result<Json<GraphDataResponse>, AppError> {
     
-    // Llamada al repositorio para obtener el nodo y sus vecinos (Requiere implementación en Repo)
     let graph_data = state.repo.get_concept_neighborhood(&name).await?;
     
     Ok(Json(graph_data))

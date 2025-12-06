@@ -1,15 +1,32 @@
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json, 
+    extract::{State, FromRef}, 
+    http::StatusCode, 
+    response::IntoResponse
+};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::domain::{ports::{KGRepository, AIService}, errors::AppError};
 use crate::application::dtos::AdminConfigPayload;
 use tera::Tera;
+use axum_extra::extract::cookie::Key; 
 
-// Estado compartido (ver main.rs)
+// ESTRUCTURA REFACTORIZADA:
+// 1. Deriva Clone (porque todos sus campos son Arc o clonables baratos)
+// 2. Contiene los Arc internamente.
+#[derive(Clone)]
 pub struct AppState {
     pub repo: Arc<dyn KGRepository>,
-    pub ai_service: Arc<RwLock<dyn AIService>>, // RwLock para poder actualizar config
-    pub tera: Tera, // <-- NUEVO CAMPO
+    pub ai_service: Arc<RwLock<dyn AIService>>, 
+    pub tera: Arc<Tera>, // Tera envuelto en Arc para clonación barata
+    pub key: Key,        // Key para firmar cookies
+}
+
+// Implementación necesaria para que SignedCookieJar funcione
+impl FromRef<AppState> for Key {
+    fn from_ref(state: &AppState) -> Self {
+        state.key.clone()
+    }
 }
 
 #[utoipa::path(
@@ -23,7 +40,7 @@ pub struct AppState {
     )
 )]
 pub async fn update_config(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>, // <-- Sin Arc<>
     Json(payload): Json<AdminConfigPayload>,
 ) -> Result<impl IntoResponse, AppError> {
     
@@ -41,7 +58,5 @@ pub async fn update_config(
         return Ok((StatusCode::OK, Json("System reset and reconfigured successfully")));
     }
 
-    // Si intenta cambiar configuración sin force_reset, denegar si implica cambio estructural
-    // Por simplicidad, exigimos force_reset para cualquier cambio de configuración en este endpoint crítico
     Err(AppError::SafetyGuardError)
 }

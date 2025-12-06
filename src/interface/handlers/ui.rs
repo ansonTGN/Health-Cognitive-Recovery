@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     Extension,
 };
-use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar}; // Usamos SignedCookieJar
+use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar}; 
 use std::sync::Arc;
 use tera::{Context, Tera};
 use serde::Deserialize;
@@ -13,7 +13,7 @@ use jsonwebtoken::{encode, Header, EncodingKey};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::interface::handlers::admin::AppState;
-use crate::domain::models::{Claims, UserRole};
+use crate::domain::models::Claims;
 
 #[derive(Deserialize)]
 pub struct AuthPayload {
@@ -33,8 +33,8 @@ pub async fn render_login() -> impl IntoResponse {
 }
 
 pub async fn authenticate(
-    State(state): State<Arc<AppState>>,
-    jar: SignedCookieJar, // Axum inyecta esto usando la Key del main.rs
+    State(state): State<AppState>, // <-- Sin Arc<>
+    jar: SignedCookieJar, 
     Form(payload): Form<AuthPayload>,
 ) -> impl IntoResponse {
     
@@ -64,7 +64,6 @@ pub async fn authenticate(
         cookie.set_same_site(SameSite::Strict);
         cookie.set_path("/");
 
-        // Simplemente añadimos al jar firmado
         let updated_jar = jar.add(cookie);
 
         (updated_jar, Redirect::to("/dashboard")).into_response()
@@ -79,7 +78,7 @@ pub async fn authenticate(
 
 pub async fn render_dashboard_guarded(
     Extension(claims): Extension<Claims>,
-    State(state): State<Arc<AppState>>
+    State(state): State<AppState> // <-- Sin Arc<>
 ) -> impl IntoResponse {
     let mut ctx = Context::new();
     

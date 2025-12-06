@@ -47,18 +47,23 @@ impl AIService for RigAIService {
         let client = self.get_client(); 
         let model = client.embedding_model(&self.config.embedding_model);
         
-        let embeddings = EmbeddingsBuilder::new(model)
-            .document(text) 
-            .map_err(|e| AppError::AIError(format!("Error adding document: {}", e)))? 
+        let embeddings_response = EmbeddingsBuilder::new(model)
+            .document(text, "doc_id", vec![]) // Args corregidos
             .build()
             .await
             .map_err(|e| AppError::AIError(format!("Embedding failed: {}", e)))?;
 
-        let (_, embedding_data) = embeddings.first()
+        // 1. Obtenemos el resultado del documento (DocumentEmbeddings)
+        let doc_result = embeddings_response.first()
             .ok_or_else(|| AppError::AIError("No embedding returned".to_string()))?;
             
-        let first_embedding = embedding_data.first();
-        let embedding_f32: Vec<f32> = first_embedding.vec.iter().map(|&x| x as f32).collect();
+        // 2. CORRECCIÓN: Accedemos al campo 'embeddings' (que es un Vec<Embedding>)
+        // y tomamos el primero, luego su campo 'vec'.
+        let embedding_obj = doc_result.embeddings.first()
+             .ok_or_else(|| AppError::AIError("Inner embedding list is empty".to_string()))?;
+
+        // 3. Convertimos f64 a f32
+        let embedding_f32: Vec<f32> = embedding_obj.vec.iter().map(|&x| x as f32).collect();
         
         Ok(embedding_f32)
     }

@@ -1,5 +1,4 @@
 use axum::{Json, extract::State};
-use std::sync::Arc;
 use crate::application::reasoning::ReasoningService;
 use crate::domain::models::InferredRelation;
 use crate::domain::errors::AppError;
@@ -13,7 +12,7 @@ use super::admin::AppState;
     )
 )]
 pub async fn run_reasoning(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>, // <-- Sin Arc<>
 ) -> Result<Json<Vec<InferredRelation>>, AppError> {
     
     let service = ReasoningService::new(state.repo.clone(), state.ai_service.clone());

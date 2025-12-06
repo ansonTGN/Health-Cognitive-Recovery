@@ -9,14 +9,12 @@ use axum::{
     middleware,
     response::Redirect, 
     http::{HeaderValue, header},
-    Extension,
 }; 
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use neo4rs::Graph;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use tower::ServiceBuilder;
 use tower_http::{
     trace::TraceLayer,
     cors::CorsLayer,
@@ -26,9 +24,10 @@ use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use secrecy::SecretString;
 use tera::Tera;
 use bcrypt::{hash, DEFAULT_COST};
-use axum_extra::extract::cookie::Key; // Importante
+use axum_extra::extract::cookie::Key;
 
 use crate::domain::models::*;
+use crate::domain::ports::KGRepository; 
 use crate::infrastructure::ai::rig_client::RigAIService;
 use crate::infrastructure::persistence::neo4j_repo::Neo4jRepo;
 use crate::interface::handlers::{admin::{self, AppState}, ingest, graph, ui, chat, reasoning, export}; 
@@ -89,7 +88,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = Arc::new(Graph::new(&uri, &user, &pass).await?);
     let repo = Arc::new(Neo4jRepo::new(graph.clone()));
     
-    // Ignoramos error si ya existen índices
     let _ = repo.create_indexes(embedding_dim).await;
     
     let admin_user = std::env::var("ADMIN_USER").unwrap_or("admin".to_string());
@@ -100,10 +98,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 3. State & Templating
     let ai_service = Arc::new(RwLock::new(RigAIService::new(initial_config)));
     let tera = Tera::new("templates/**/*.html")?;
-    let app_state = Arc::new(AppState { repo: repo.clone(), ai_service, tera });
+    
+    // CORRECCIÓN FINAL: AppState se instancia DIRECTAMENTE (no Arc::new)
+    // Los Arc están adentro de la estructura.
+    let app_state = AppState { 
+        repo: repo.clone(), 
+        ai_service, 
+        tera: Arc::new(tera), // Tera dentro de Arc
+        key: Key::from(COOKIE_KEY)
+    };
 
     // 4. Security Layers
-    let governor_conf = Box::new(GovernorConfigBuilder::default()
+    let governor_conf = Arc::new(GovernorConfigBuilder::default()
         .per_second(5) 
         .burst_size(10)
         .finish()
@@ -134,13 +140,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(user_routes)
         .merge(admin_routes)
         .route("/logout", get(|| async { Redirect::to("/") }))
-        // Inyectamos la Key para SignedCookieJar
-        .layer(Extension(Key::from(COOKIE_KEY)))
-        .layer(GovernorLayer { config: Box::leak(governor_conf) })
+        .layer(GovernorLayer { config: governor_conf })
         .layer(SetResponseHeaderLayer::overriding(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff")))
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
-        .with_state(app_state);
+        .with_state(app_state); // Pasamos AppState directo
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);

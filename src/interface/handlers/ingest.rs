@@ -3,9 +3,8 @@ use axum::{
     response::IntoResponse,
     body::{Body, Bytes},
 };
-use std::sync::Arc;
 use tokio::sync::mpsc;
-use tokio::task; // Importante para spawn_blocking
+use tokio::task; 
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
@@ -16,17 +15,14 @@ use super::admin::AppState;
 #[utoipa::path(
     post,
     path = "/api/ingest",
-    request_body(
-        content_type = "multipart/form-data", 
-        description = "Sube archivos (PDF, DOCX, XLSX, CSV, HTML, TXT)",
-    ),
+    request_body(content_type = "multipart/form-data", description = "File upload", content = String), 
     responses(
         (status = 200, description = "Stream de progreso"),
         (status = 500, description = "Error interno")
     )
 )]
 pub async fn ingest_document(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>, // <-- Sin Arc<>
     mut multipart: Multipart,
 ) -> impl IntoResponse {
 
@@ -35,7 +31,6 @@ pub async fn ingest_document(
 
     tokio::spawn(async move {
         let mut content = String::new();
-        // let mut filename = String::from("unknown"); // Ya no es necesario mut fuera del loop
 
         while let Ok(Some(field)) = multipart.next_field().await {
             let name = field.name().unwrap_or("").to_string();
@@ -48,10 +43,8 @@ pub async fn ingest_document(
                     Ok(bytes) => {
                          let _ = tx_inner.send("✨ Transmutando formato a texto plano (Background)...".to_string()).await;
                          
-                         // --- ESCALABILIDAD: CPU INTENSIVE TASK ---
-                         // Movemos la transmutación a un hilo bloqueante para no detener el runtime async
                          let filename_clone = filename.clone();
-                         let bytes_vec = bytes.to_vec(); // Convertimos a Vec para mover ownership al hilo
+                         let bytes_vec = bytes.to_vec(); 
 
                          let transmutation_result = task::spawn_blocking(move || {
                             DocumentTransmuter::transmute(&filename_clone, &bytes_vec)
@@ -71,7 +64,6 @@ pub async fn ingest_document(
                                  return;
                              }
                          }
-                         // ----------------------------------------
                     },
                     Err(e) => {
                         let _ = tx_inner.send(format!("❌ Error subida: {}", e)).await;
@@ -93,7 +85,7 @@ pub async fn ingest_document(
             return;
         }
 
-        // Iniciar Servicio de Ingesta (Chunking -> Embedding -> Graph)
+        // Al clonar state.repo y state.ai_service, clonamos los Arc internos (barato)
         let service = IngestionService::new(state.repo.clone(), state.ai_service.clone());
 
         match service.ingest_with_progress(content, tx_inner.clone()).await {
