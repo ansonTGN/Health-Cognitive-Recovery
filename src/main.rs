@@ -9,6 +9,7 @@ use axum::{
     middleware,
     response::Redirect, 
     http::{HeaderValue, header},
+    Extension, // Importante para inyectar la Key globalmente
 }; 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -30,6 +31,7 @@ use crate::domain::models::*;
 use crate::domain::ports::KGRepository; 
 use crate::infrastructure::ai::rig_client::RigAIService;
 use crate::infrastructure::persistence::neo4j_repo::Neo4jRepo;
+// Importamos AppState desde admin
 use crate::interface::handlers::{admin::{self, AppState}, ingest, graph, ui, chat, reasoning, export}; 
 use crate::interface::middleware::COOKIE_KEY;
 
@@ -88,8 +90,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = Arc::new(Graph::new(&uri, &user, &pass).await?);
     let repo = Arc::new(Neo4jRepo::new(graph.clone()));
     
+    // Crear índices
     let _ = repo.create_indexes(embedding_dim).await;
     
+    // Crear usuario admin por defecto
     let admin_user = std::env::var("ADMIN_USER").unwrap_or("admin".to_string());
     let admin_pass = std::env::var("ADMIN_PASS").unwrap_or("admin123".to_string());
     let hashed_pass = hash(admin_pass, DEFAULT_COST)?;
@@ -99,13 +103,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ai_service = Arc::new(RwLock::new(RigAIService::new(initial_config)));
     let tera = Tera::new("templates/**/*.html")?;
     
-    // CORRECCIÓN FINAL: AppState se instancia DIRECTAMENTE (no Arc::new)
-    // Los Arc están adentro de la estructura.
+    // CORRECCIÓN: AppState sin campo 'key', usando Arc internos.
     let app_state = AppState { 
         repo: repo.clone(), 
         ai_service, 
-        tera: Arc::new(tera), // Tera dentro de Arc
-        key: Key::from(COOKIE_KEY)
+        tera: Arc::new(tera), 
     };
 
     // 4. Security Layers
@@ -140,11 +142,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(user_routes)
         .merge(admin_routes)
         .route("/logout", get(|| async { Redirect::to("/") }))
+        // IMPORTANTE: Aquí inyectamos la Key para las Cookies firmadas
+        .layer(Extension(Key::from(COOKIE_KEY))) 
         .layer(GovernorLayer { config: governor_conf })
         .layer(SetResponseHeaderLayer::overriding(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff")))
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
-        .with_state(app_state); // Pasamos AppState directo
+        .with_state(app_state);
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
