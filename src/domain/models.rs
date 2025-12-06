@@ -1,10 +1,42 @@
-// FILE: src/domain/models.rs
 use serde::{Deserialize, Serialize};
 use secrecy::SecretString;
 use utoipa::{ToSchema, IntoParams}; 
 use validator::Validate;
+use std::fmt;
 
-// --- CONFIGURACIÓN (Sin cambios significativos) ---
+// --- 1. SEGURIDAD & USUARIOS (NUEVO) ---
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ToSchema)]
+pub enum UserRole {
+    Admin,
+    User,
+}
+
+impl fmt::Display for UserRole {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UserRole::Admin => write!(f, "Admin"),
+            UserRole::User => write!(f, "User"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct User {
+    pub id: String,
+    pub username: String,
+    pub password_hash: String,
+    pub role: UserRole,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Claims {
+    pub sub: String,     // Subject (Username)
+    pub role: UserRole,  // RBAC Role
+    pub exp: usize,      // Expiration
+}
+
+// --- 2. CONFIGURACIÓN IA ---
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub enum AIProvider {
@@ -24,17 +56,15 @@ pub struct AIConfig {
     pub model_name: String,
     #[validate(length(min = 1))]
     pub embedding_model: String,
-    
     #[serde(skip_serializing, default = "default_api_key")]
     #[schema(value_type = String)] 
     pub api_key: SecretString,
-    
     pub embedding_dim: usize,
     #[validate(url)]
     pub base_url: Option<String>, 
 }
 
-// --- GRAFO BÁSICO (Sin cambios) ---
+// --- 3. CORE DEL GRAFO (GraphRAG) ---
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct GraphEntity {
@@ -62,7 +92,7 @@ pub struct IngestionRequest {
     pub metadata: serde_json::Value,
 }
 
-// --- VISUALIZACIÓN (Sin cambios) ---
+// --- 4. VISUALIZACIÓN ---
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct VisNode {
@@ -84,36 +114,25 @@ pub struct GraphDataResponse {
     pub edges: Vec<VisEdge>,
 }
 
-// --- CHAT RAG AVANZADO (MODIFICADO) ---
+// --- 5. CHAT & RAG ---
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatRequest {
     pub message: String,
 }
 
-/// Referencia a una fuente documental específica.
-/// Se usa para crear citas interactivas [1] que iluminan el grafo.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SourceReference {
-    /// Índice visual para la cita (ej: 1, 2, 3)
     pub index: usize,
-    /// ID interno del chunk
     pub chunk_id: String,
-    /// Fragmento de texto para mostrar en tooltip/panel
     pub short_content: String,
-    /// Puntuación de relevancia (0.0 - 1.0)
     pub relevance: f32,
-    /// Conceptos (nodos) del grafo presentes en este fragmento.
-    /// Clave para la interactividad Visual <-> Texto.
     pub concepts: Vec<String>,
 }
 
-/// Respuesta estructurada del chat.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatResponse {
-    /// Texto generado por el LLM (Markdown)
     pub response: String,
-    /// Lista de fuentes utilizadas para generar la respuesta
     pub sources: Vec<SourceReference>,
 }
 
@@ -124,7 +143,7 @@ pub struct HybridContext {
     pub connected_entities: Vec<String>, 
 }
 
-// --- RAZONAMIENTO E INFERENCIA ---
+// --- 6. INFERENCIA & EXPORTACIÓN ---
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct InferredRelation {
@@ -139,26 +158,12 @@ pub struct InferenceResult {
     pub new_relations: Vec<InferredRelation>,
 }
 
-// AÑADIR en src/domain/models.rs
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExportedGraph {
     pub generated_at: String,
     pub domain: String,
     pub nodes: Vec<GraphEntity>,
     pub edges: Vec<GraphRelation>,
-}
-
-// Opcional: Enums para validación estricta post-extracción
-#[derive(Debug, PartialEq)]
-pub enum EntityCategory {
-    Person,
-    Condition,
-    Intervention,
-    Outcome,
-    CommunityResource,
-    Concept,
-    Unknown(String),
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

@@ -1,17 +1,19 @@
 use axum::{
     response::{Html, IntoResponse, Redirect},
     extract::{State, Form},
-    http::{StatusCode, header},
+    http::StatusCode,
 };
+use axum_extra::extract::cookie::{Cookie, SameSite, CookieJar, Key};
 use std::sync::Arc;
-use tera::{Context, Tera}; // <--- CORRECCIÓN: AÑADIDO 'Tera' AQUÍ
+use tera::{Context, Tera};
 use serde::Deserialize;
-use crate::interface::handlers::admin::AppState;
+use bcrypt::verify;
+use jsonwebtoken::{encode, Header, EncodingKey};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-// Credentials for deployment
-const USERNAME: &str = "propileno";
-const PASSWORD: &str = "propileno24";
-const SESSION_COOKIE: &str = "lamuralla_auth";
+use crate::interface::handlers::admin::AppState;
+use crate::interface::middleware::COOKIE_KEY;
+use crate::domain::models::{Claims, UserRole};
 
 #[derive(Deserialize)]
 pub struct AuthPayload {
@@ -20,77 +22,82 @@ pub struct AuthPayload {
 }
 
 pub async fn render_login() -> impl IntoResponse {
-    // La instancia de Tera se crea aquí temporalmente para renderizar el login
-    // ya que no requiere el estado de la aplicación.
     let tera = match Tera::new("templates/**/*.html") {
         Ok(t) => t,
-        Err(e) => return Html(format!("<h1>Error loading templates: {}</h1>", e)).into_response(),
+        Err(e) => return Html(format!("<h1>Templates Error: {}</h1>", e)).into_response(),
     };
-
     match tera.render("login.html", &Context::new()) {
         Ok(html) => Html(html).into_response(),
-        Err(err) => Html(format!("<h1>Error rendering template</h1><p>{}</p>", err)).into_response(),
+        Err(err) => Html(format!("<h1>Render Error</h1><p>{}</p>", err)).into_response(),
     }
 }
 
 pub async fn authenticate(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
     Form(payload): Form<AuthPayload>,
 ) -> impl IntoResponse {
     
-    if payload.username == USERNAME && payload.password == PASSWORD {
-        // En un entorno de producción, esto debería ser un token JWT o una cookie con sesión segura.
-        // Aquí usamos una cookie simple como "sesión" para el ejercicio.
-        let cookie_value = format!("{}=valid; Path=/; Max-Age={}; HttpOnly; SameSite=Strict", SESSION_COOKIE, 3600); // 1 hora
-        
-        let mut response = Redirect::to("/dashboard").into_response();
-        response.headers_mut().insert(header::SET_COOKIE, header::HeaderValue::from_str(&cookie_value).unwrap());
-        response
+    // 1. Buscar usuario
+    let user_opt = state.repo.get_user_by_username(&payload.username).await.unwrap_or(None);
+
+    let is_valid = if let Some(ref user) = user_opt {
+        verify(&payload.password, &user.password_hash).unwrap_or(false)
     } else {
-        // Renderizar página de login con mensaje de error
+        false
+    };
+
+    if is_valid {
+        let user = user_opt.unwrap();
+        
+        // 2. Generar JWT
+        let expiration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as usize + 3600; // 1 hora
+        let claims = Claims {
+            sub: user.username,
+            role: user.role,
+            exp: expiration,
+        };
+        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "fallback_secret_dev_only".to_string());
+        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap();
+
+        // 3. Crear Cookie Segura
+        let mut cookie = Cookie::new("lamuralla_jwt", token);
+        cookie.set_http_only(true);
+        cookie.set_secure(true); // Render usa HTTPS
+        cookie.set_same_site(SameSite::Strict);
+        cookie.set_path("/");
+
+        // Firmar cookie
+        let key = Key::from(COOKIE_KEY);
+        let updated_jar = jar.signed_with(&key).add(cookie);
+
+        (updated_jar, Redirect::to("/dashboard")).into_response()
+    } else {
         let mut ctx = Context::new();
         ctx.insert("error", &true);
-        match state.tera.render("login.html", &ctx) {
-             Ok(html) => (StatusCode::UNAUTHORIZED, Html(html)).into_response(),
-             Err(err) => Html(format!("<h1>Error rendering template</h1><p>{}</p>", err)).into_response(),
-        }
+        // Usamos una nueva instancia de Tera si falla para evitar issues de threading con State
+        let tera = Tera::new("templates/**/*.html").unwrap();
+        let html = tera.render("login.html", &ctx).unwrap_or_default();
+        (StatusCode::UNAUTHORIZED, Html(html)).into_response()
     }
 }
 
-pub async fn auth_guard(headers: header::HeaderMap) -> Result<(), StatusCode> {
-    // Comprueba la existencia de la cookie de autenticación
-    let cookie_header = headers.get(header::COOKIE)
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("");
-    
-    if cookie_header.contains(&format!("{}={}", SESSION_COOKIE, "valid")) {
-        Ok(())
-    } else {
-        // Si no está autenticado, redirige al login
-        Err(StatusCode::UNAUTHORIZED)
-    }
-}
-
-// Envuelve el render_dashboard original con el guard
 pub async fn render_dashboard_guarded(
-    headers: header::HeaderMap, 
     State(state): State<Arc<AppState>>
 ) -> impl IntoResponse {
-    // 1. Ejecutar el guard de autenticación
-    if let Err(_) = auth_guard(headers).await {
-        return Redirect::to("/").into_response();
-    }
-    
-    // 2. Si pasa, renderiza el dashboard
-    let _ai_guard = state.ai_service.read().await;
     let mut ctx = Context::new();
+    
+    // Recuperar configuración para el frontend
+    let ai_guard = state.ai_service.read().await;
+    let config = ai_guard.get_config();
+
     ctx.insert("config", &serde_json::json!({
-        "model_name": "gpt-4o",
-        "embedding_dim": 1536
+        "model_name": config.model_name,
+        "embedding_dim": config.embedding_dim
     }));
 
     match state.tera.render("dashboard.html", &ctx) {
         Ok(html) => Html(html).into_response(),
-        Err(err) => Html(format!("<h1>Error rendering template</h1><p>{}</p>", err)).into_response(),
+        Err(err) => Html(format!("<h1>Error</h1><p>{}</p>", err)).into_response(),
     }
 }
