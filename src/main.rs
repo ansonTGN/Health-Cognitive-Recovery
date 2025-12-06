@@ -20,7 +20,6 @@ use tower_http::{
     cors::CorsLayer,
     set_header::SetResponseHeaderLayer,
 };
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use secrecy::SecretString;
 use tera::Tera;
 use bcrypt::{hash, DEFAULT_COST};
@@ -80,7 +79,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .or_else(|_| std::env::var("OPENAI_API_KEY"))
         .unwrap_or_default();
     let model_name = std::env::var("AI_MODEL").unwrap_or_else(|_| "gpt-4o".to_string());
-    let embedding_model = std::env::var("AI_EMBEDDING_MODEL").unwrap_or_else(|_| "text-embedding-3-small".to_string());
+    let embedding_model =
+        std::env::var("AI_EMBEDDING_MODEL").unwrap_or_else(|_| "text-embedding-3-small".to_string());
     let embedding_dim = std::env::var("AI_EMBEDDING_DIM")
         .unwrap_or("1536".to_string())
         .parse::<usize>()?;
@@ -128,16 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tera: Arc::new(tera),
     };
 
-    // 5. Rate limiting
-    let governor_conf = Arc::new(
-        GovernorConfigBuilder::default()
-            .per_second(5)
-            .burst_size(10)
-            .finish()
-            .unwrap(),
-    );
-
-    // 6. Rutas públicas (login + swagger)
+    // 5. Rutas públicas (login + swagger)
     let public_routes = Router::new()
         .route("/", get(ui::render_login).post(ui::authenticate))
         .merge(
@@ -145,11 +136,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .url("/api-docs/openapi.json", ApiDoc::openapi()),
         );
 
-    // 7. Rutas de usuario autenticado (dashboard + APIs user)
+    // 6. Rutas de usuario autenticado
     let user_routes = Router::new()
         .route("/dashboard", get(ui::render_dashboard_guarded))
         .route("/api/graph", get(graph::get_graph))
-        .route("/api/graph/concept/{name}", get(graph::get_concept_neighborhood))
+        .route(
+            "/api/graph/concept/{name}",
+            get(graph::get_concept_neighborhood),
+        )
         .route("/api/chat", post(chat::chat_handler))
         .route("/api/export", get(export::export_knowledge_graph))
         .route("/api/reasoning/run", post(reasoning::run_reasoning))
@@ -157,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             crate::interface::middleware::auth_middleware,
         ));
 
-    // 8. Rutas admin (ingest + config)
+    // 7. Rutas admin (ingest + config)
     let admin_routes = Router::new()
         .route("/api/admin/config", post(admin::update_config))
         .route("/api/ingest", post(ingest::ingest_document))
@@ -168,13 +162,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             crate::interface::middleware::auth_middleware,
         ));
 
-    // 9. Router principal
+    // 8. Router principal (SIN tower_governor)
     let app = Router::new()
         .merge(public_routes)
         .merge(user_routes)
         .merge(admin_routes)
         .route("/logout", get(|| async { Redirect::to("/") }))
-        .layer(GovernorLayer { config: governor_conf })
         .layer(SetResponseHeaderLayer::overriding(
             header::X_CONTENT_TYPE_OPTIONS,
             HeaderValue::from_static("nosniff"),
@@ -183,7 +176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(CorsLayer::permissive())
         .with_state(app_state);
 
-    // 10. Lanzar servidor
+    // 9. Lanzar servidor
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -193,4 +186,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
 
