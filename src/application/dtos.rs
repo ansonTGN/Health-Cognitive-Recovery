@@ -8,6 +8,7 @@ pub struct AdminConfigPayload {
     pub force_reset: bool,
 }
 
+// Puedes eliminar IngestionResponse si no lo usas, o dejarlo así (el warning no afecta)
 #[derive(Serialize, ToSchema)]
 pub struct IngestionResponse {
     pub id: String,
