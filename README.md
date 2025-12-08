@@ -12,7 +12,7 @@
 
 ---
 
-**[ 🇪🇸 Español ](#-español) | [ 🇺🇸 English ](#-english) | [ 🏴󠁥󠁳󠁣󠁴󠁿 Català ](#-català)**
+**[ Español ](#-español) | [ English ](#-english) | [ Català ](#-català)**
 
 ---
 
