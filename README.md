@@ -1,7 +1,3 @@
-Aquí tienes el archivo `README.md` definitivo. Ha sido redactado siguiendo los estándares profesionales de la comunidad Open Source, con un desglose detallado de las capacidades del Frontend (basado en el código real que hemos generado) y la información de contacto del autor.
-
----
-
 # LaMuralla Health: Cognitive Recovery Engine
 
 <div align="center">
