@@ -1,20 +1,19 @@
-<div class="tab-pane fade show active h-100 d-flex flex-column" id="tab-chat">
-    <div id="chatArea" class="chat-container">
-        <div class="msg-bubble msg-ai animate__animated animate__fadeIn">
-            <div class="d-flex align-items-center gap-2 mb-2 border-bottom pb-2">
-                <i class="fa-solid fa-robot text-primary"></i>
-                <span class="fw-bold text-xs text-uppercase text-primary-custom" id="chat-bot-name">Asistente Clínico</span>
-            </div>
-            <div class="text-sm" id="chat-welcome">
-                Hola <strong>{{ username }}</strong>. Analizo historias clínicas y datos sociales.<br>
-                <em class="text-muted text-xs" id="chat-example">Ej: "¿Qué impacto tiene el taller de arte en la ansiedad?"</em>
+<div class="tab-pane fade show active h-100" id="content-chat" role="tabpanel" aria-labelledby="tab-btn-chat">
+    <div class="d-flex flex-column h-100">
+        <div id="chatArea" class="chat-container">
+            <!-- Mensaje Bienvenida -->
+            <div class="msg-bubble msg-ai">
+                <strong><i class="fa-solid fa-robot me-2"></i>Asistente Clínico</strong><br>
+                Hola <strong>{{ username }}</strong>. Estoy listo para analizar el grafo de conocimiento.<br>
+                <small class="text-muted">Prueba: "¿Qué síntomas tiene Juan?" o "¿Qué intervenciones funcionan mejor?"</small>
             </div>
         </div>
-    </div>
-    <div class="p-3 bg-white border-top shadow-sm z-3">
-        <div class="input-group">
-            <textarea id="userPrompt" class="form-control border bg-light text-sm" rows="2" placeholder="..." style="resize:none" onkeypress="handleEnter(event)"></textarea>
-            <button class="btn btn-primary-custom px-3" onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+        
+        <div class="p-3 border-top bg-white">
+            <div class="input-group">
+                <textarea id="userPrompt" class="form-control bg-light" rows="2" placeholder="Escribe tu consulta..." style="resize:none" onkeypress="handleEnter(event)"></textarea>
+                <button class="btn btn-primary-custom" onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
         </div>
     </div>
 </div>

@@ -1,29 +1,34 @@
-<div class="pane-sidebar bg-white">
-    <!-- Navegación de Pestañas -->
-    <ul class="nav nav-tabs nav-tabs-custom border-bottom bg-light" role="tablist">
-        <li class="nav-item"><button class="nav-link w-100 active" data-bs-toggle="tab" data-bs-target="#tab-chat" id="t-tab-chat"><i class="fa-regular fa-comments me-1"></i>Chat</button></li>
-        <li class="nav-item"><button class="nav-link w-100" data-bs-toggle="tab" data-bs-target="#tab-details" id="t-tab-card"><i class="fa-solid fa-file-medical me-1"></i>Ficha</button></li>
-        <li class="nav-item"><button class="nav-link w-100" data-bs-toggle="tab" data-bs-target="#tab-tools" id="t-tab-tools"><i class="fa-solid fa-toolbox me-1"></i>Utils</button></li>
+<div class="pane-sidebar">
+    <!-- TABS NAVIGATION -->
+    <ul class="nav nav-tabs nav-tabs-custom nav-fill border-bottom bg-white" id="sidebarTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" id="tab-btn-chat" data-bs-toggle="tab" data-bs-target="#content-chat" type="button"><i class="fa-regular fa-comments"></i> Chat</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="tab-btn-details" data-bs-toggle="tab" data-bs-target="#content-details" type="button"><i class="fa-solid fa-file-medical"></i> Ficha</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="tab-btn-tools" data-bs-toggle="tab" data-bs-target="#content-tools" type="button"><i class="fa-solid fa-toolbox"></i> Utils</button>
+        </li>
         {% if role == "Admin" %}
-        <li class="nav-item"><button class="nav-link w-100" data-bs-toggle="tab" data-bs-target="#tab-ingest" id="t-tab-data"><i class="fa-solid fa-database me-1"></i>Data</button></li>
+        <li class="nav-item">
+            <button class="nav-link" id="tab-btn-ingest" data-bs-toggle="tab" data-bs-target="#content-ingest" type="button"><i class="fa-solid fa-database"></i> Datos</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="tab-btn-team" data-bs-toggle="tab" data-bs-target="#content-team" type="button" onclick="loadUsers()"><i class="fa-solid fa-users"></i> Equipo</button>
+        </li>
         {% endif %}
     </ul>
 
-    <!-- Contenido Scrollable -->
-    <div class="tab-content flex-grow-1 d-flex flex-column overflow-hidden">
+    <!-- TABS CONTENT AREA -->
+    <div class="tab-content bg-white" id="sidebarTabsContent">
         {% include "tabs/chat.html" %}
         {% include "tabs/details.html" %}
         {% include "tabs/tools.html" %}
+        
         {% if role == "Admin" %}
             {% include "tabs/ingest.html" %}
             {% include "tabs/team.html" %}
         {% endif %}
     </div>
-
-    <!-- AUTHOR FOOTER -->
-    <a href="https://angelurbinacv.netlify.app/" target="_blank" class="dev-signature" title="Ver Portfolio">
-        <span class="text-muted small" id="t-arch-by">Arquitectura por</span>
-        <strong>Ángel A. Urbina</strong>
-        <i class="fa-solid fa-code text-primary text-xs ms-1"></i>
-    </a>
 </div>

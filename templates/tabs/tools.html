@@ -1,30 +1,16 @@
-<div class="tab-pane fade h-100 overflow-auto p-4" id="tab-tools">
-    <h5 class="fw-bold mb-4 text-dark" id="tools-title">Utilidades y Exportación</h5>
+<div class="tab-pane fade h-100 p-4" id="content-tools" role="tabpanel" aria-labelledby="tab-btn-tools">
+    <h5 class="fw-bold text-dark mb-4">Herramientas</h5>
     
-    <div class="card border mb-4 shadow-sm">
-        <div class="card-body">
-            <h6 class="text-xs fw-bold text-muted mb-3" id="tools-h6-data">EXPORTAR DATOS (ONTOLOGÍA)</h6>
-            <div class="d-grid gap-2">
-                <button onclick="downloadGraph('jsonld')" class="btn btn-outline-dark btn-sm text-start">
-                    <i class="fa-solid fa-file-code me-2 text-warning"></i> JSON-LD 
-                </button>
-                <button onclick="downloadGraph('turtle')" class="btn btn-outline-dark btn-sm text-start">
-                    <i class="fa-solid fa-share-nodes me-2 text-success"></i> RDF / Turtle
-                </button>
-                <button onclick="downloadGraph('graphml')" class="btn btn-outline-dark btn-sm text-start">
-                    <i class="fa-solid fa-project-diagram me-2 text-info"></i> GraphML 
-                </button>
-            </div>
+    <div class="d-grid gap-3">
+        <div class="p-3 border rounded">
+            <h6 class="fw-bold text-muted mb-3">Exportar Datos</h6>
+            <button onclick="downloadGraph('jsonld')" class="btn btn-outline-dark w-100 mb-2 text-start"><i class="fa-solid fa-code me-2"></i> JSON-LD</button>
+            <button onclick="downloadGraph('turtle')" class="btn btn-outline-dark w-100 mb-2 text-start"><i class="fa-solid fa-project-diagram me-2"></i> RDF / Turtle</button>
         </div>
-    </div>
 
-    <div class="card border shadow-sm">
-        <div class="card-body">
-            <h6 class="text-xs fw-bold text-muted mb-3" id="tools-h6-img">CAPTURA VISUAL</h6>
-            <button onclick="exportCanvasImage()" class="btn btn-primary-custom w-100 btn-sm">
-                <i class="fa-solid fa-camera me-2"></i> <span id="tools-btn-img">Descargar Imagen (PNG)</span>
-            </button>
-            <p class="text-xs text-muted mt-2 mb-0" id="tools-p-img">Guarda la vista actual del grafo para informes.</p>
+        <div class="p-3 border rounded">
+            <h6 class="fw-bold text-muted mb-3">Visualización</h6>
+            <button onclick="exportCanvasImage()" class="btn btn-primary w-100"><i class="fa-solid fa-camera me-2"></i> Guardar Imagen</button>
         </div>
     </div>
 </div>

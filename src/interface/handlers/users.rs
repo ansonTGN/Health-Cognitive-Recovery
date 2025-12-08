@@ -6,12 +6,11 @@ use axum::{
 };
 use bcrypt::{hash, DEFAULT_COST};
 use uuid::Uuid;
-use crate::domain::{models::{User, UserRole}, errors::AppError};
+use crate::domain::{models::User, errors::AppError}; // UserRole eliminado
 use crate::application::dtos::{CreateUserRequest, UserDto};
 use super::admin::AppState;
 
 /// GET /api/admin/users
-/// Lista todos los usuarios registrados
 pub async fn list_users(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<UserDto>>, AppError> {
@@ -27,22 +26,18 @@ pub async fn list_users(
 }
 
 /// POST /api/admin/users
-/// Crea un nuevo usuario
 pub async fn create_user(
     State(state): State<AppState>,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     
-    // 1. Verificar si ya existe el usuario
     if let Ok(Some(_)) = state.repo.get_user_by_username(&payload.username).await {
         return Err(AppError::ValidationError("Username already exists".to_string()));
     }
 
-    // 2. Hashear la contraseña
     let hashed_pass = hash(payload.password, DEFAULT_COST)
         .map_err(|e| AppError::ParseError(e.to_string()))?;
 
-    // 3. Crear el modelo de usuario
     let new_user = User {
         id: Uuid::new_v4().to_string(),
         username: payload.username,
@@ -50,25 +45,21 @@ pub async fn create_user(
         role: payload.role,
     };
 
-    // 4. Guardar en BD
     state.repo.create_user(new_user).await?;
 
     Ok((StatusCode::CREATED, Json("User created successfully")))
 }
 
 /// DELETE /api/admin/users/:username
-/// Elimina un usuario por su nombre
 pub async fn delete_user(
     State(state): State<AppState>,
     Path(username): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     
-    // Seguridad básica: No permitir borrar al Admin principal definido en .env
-    // para evitar que el sistema se quede sin acceso total accidentalmente.
     let env_admin = std::env::var("ADMIN_USER").unwrap_or("admin".to_string());
     
     if username == env_admin {
-        return Err(AppError::SafetyGuardError); // Devuelve 403 Forbidden
+        return Err(AppError::SafetyGuardError); 
     }
 
     state.repo.delete_user(&username).await?;

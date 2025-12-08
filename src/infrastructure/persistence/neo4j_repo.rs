@@ -3,7 +3,7 @@ use neo4rs::{Graph, query};
 use uuid::Uuid;
 use std::sync::Arc;
 use std::collections::HashSet;
-use tokio_stream::StreamExt;
+// Eliminado: use futures::stream::StreamExt; para quitar el warning
 use crate::domain::{
     ports::KGRepository, 
     models::{
@@ -69,10 +69,6 @@ impl KGRepository for Neo4jRepo {
     async fn ensure_admin_exists(&self, username: &str, hash: &str) -> Result<(), AppError> {
         tracing::info!("🔐 Verificando/Actualizando credenciales para admin: '{}'", username);
 
-        // Usamos MERGE para buscar por nombre de usuario.
-        // Si no existe, lo crea. Si existe, lo selecciona.
-        // ON CREATE: Asigna ID y rol.
-        // SET: Siempre actualiza el hash de la contraseña (Upsert).
         let q = query("
             MERGE (u:User {username: $username})
             ON CREATE SET u.id = randomUUID(), u.role = 'Admin'
@@ -91,7 +87,6 @@ impl KGRepository for Neo4jRepo {
         Ok(())
     }
 
-    // 👇 NUEVA IMPLEMENTACIÓN: LISTAR USUARIOS
     async fn get_all_users(&self) -> Result<Vec<User>, AppError> {
         let q = query("MATCH (u:User) RETURN u.id, u.username, u.role ORDER BY u.role, u.username");
         let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -107,14 +102,13 @@ impl KGRepository for Neo4jRepo {
             users.push(User {
                 id: row.get("u.id").unwrap_or_default(),
                 username: row.get("u.username").unwrap_or_default(),
-                password_hash: String::new(), // Por seguridad no devolvemos el hash
+                password_hash: String::new(),
                 role,
             });
         }
         Ok(users)
     }
 
-    // 👇 NUEVA IMPLEMENTACIÓN: BORRAR USUARIO
     async fn delete_user(&self, username: &str) -> Result<(), AppError> {
         let q = query("MATCH (u:User {username: $u}) DELETE u").param("u", username);
         self.graph.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -163,17 +157,20 @@ impl KGRepository for Neo4jRepo {
 
     async fn save_graph(&self, chunk_id: Uuid, data: KnowledgeExtraction) -> Result<(), AppError> {
         let mut txn = self.graph.start_txn().await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        
         for entity in &data.entities {
             let q = query("MERGE (e:Entity {name: $name}) ON CREATE SET e.category = $category")
                 .param("name", entity.name.as_str())
                 .param("category", entity.category.as_str());
             txn.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         }
+        
         for rel in data.relations {
             let cypher = format!("MATCH (a:Entity {{name: $source}}), (b:Entity {{name: $target}}) MERGE (a)-[:{}]->(b)", rel.relation_type.replace(" ", "_").to_uppercase());
             let q = query(&cypher).param("source", rel.source.as_str()).param("target", rel.target.as_str());
             txn.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         }
+        
         let q_link = query("MATCH (c:DocumentChunk {id: $cid}), (e:Entity) WHERE e.name IN $names MERGE (c)-[:MENTIONS]->(e)");
         let names: Vec<String> = data.entities.into_iter().map(|e| e.name).collect();
         txn.run(q_link.param("cid", chunk_id.to_string()).param("names", names)).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
