@@ -4,208 +4,261 @@
 
 {% block content %}
     <style>
-        /* Layout Base (Escritorio) */
-        .login-container { 
-            display: flex; 
-            min-height: 100vh; 
-            width: 100%; 
-            background: #fff;
-        }
+        /* === ESTRUCTURA GENERAL === */
+        body { background-color: #fff; }
         
-        /* Lado Izquierdo: Misión y Branding */
-        .brand-side { 
-            flex: 1.2; 
-            background-color: #264653; 
-            background-image: linear-gradient(135deg, #264653 0%, #2A9D8F 100%);
-            position: relative; 
-            color: white; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            padding: 5rem;
-            overflow: hidden;
-        }
-        
-        /* Patrón de fondo sutil */
-        .brand-pattern {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.1;
-            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 2px, transparent 2px, transparent 10px);
+        .login-wrapper {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden; /* Evita scroll horizontal */
         }
 
-        /* Lado Derecho: Formulario */
-        .form-side { 
-            flex: 1; 
-            background: #fff; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            padding: 3rem; 
+        /* === COLUMNA IZQUIERDA (BRANDING/INFO) === */
+        .brand-section {
+            flex: 1.2;
+            background-color: #264653;
+            background-image: linear-gradient(135deg, #264653 0%, #2A9D8F 100%);
+            color: white;
+            padding: 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             position: relative;
         }
-
-        .login-card { width: 100%; max-width: 400px; z-index: 10; }
-
-        /* Estilos de Texto */
-        .brand-title { font-weight: 800; letter-spacing: -1px; }
-        .quote-clean {
-            font-family: 'Manrope', sans-serif;
-            font-size: 1.35rem;
-            font-weight: 300;
-            line-height: 1.5;
-            opacity: 0.95;
-            margin-bottom: 2rem;
-            border-left: 4px solid var(--accent);
-            padding-left: 1.5rem;
-        }
-        .sector-desc { font-size: 0.95rem; line-height: 1.6; opacity: 0.85; margin-bottom: 2rem; max-width: 600px; }
         
-        /* Inputs */
-        .form-control-custom {
-            border: 2px solid #f0f2f5;
-            background-color: #f8f9fa;
-            border-radius: 12px;
-            padding: 12px 15px;
-            font-size: 0.95rem;
-            transition: all 0.3s;
+        /* Patrón decorativo */
+        .brand-bg-pattern {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+            opacity: 0.3;
         }
-        .form-control-custom:focus {
+
+        /* === COLUMNA DERECHA (FORMULARIO) === */
+        .form-section {
+            flex: 1;
+            background: #fff;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Asegura altura completa */
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 420px;
+            padding: 1rem;
+        }
+
+        /* === TIPOGRAFÍA TERCER SECTOR === */
+        .quote-human {
+            font-family: 'Manrope', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 300;
+            line-height: 1.4;
+            border-left: 5px solid var(--accent);
+            padding-left: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .description-text {
+            font-size: 1rem;
+            line-height: 1.6;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+
+        /* === ELEMENTOS INTERACTIVOS (TOUCH FRIENDLY) === */
+        
+        /* Inputs grandes para dedos */
+        .input-touch {
+            padding: 16px; /* Padding generoso */
+            font-size: 16px; /* Evita zoom en iOS */
+            border-radius: 12px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            transition: border-color 0.2s;
+        }
+        .input-touch:focus {
             background-color: #fff;
             border-color: var(--primary);
             box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.15);
             outline: none;
         }
 
-        /* Badges Técnicos */
-        .tech-badge {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            display: flex; align-items: center; gap: 6px;
-            backdrop-filter: blur(4px);
+        /* Botón de acción grande */
+        .btn-touch {
+            padding: 16px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 12px;
+            letter-spacing: 0.5px;
+            margin-top: 1rem;
         }
 
-        /* === RESPONSIVE MOBILE (La magia ocurre aquí) === */
+        /* Selector de idioma grande y accesible */
+        .lang-selector-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+        .lang-btn {
+            padding: 10px 20px; /* Área de toque grande */
+            border-radius: 50px;
+            font-weight: 600;
+            color: #6c757d;
+            background: transparent;
+            border: 1px solid transparent;
+            margin-left: 5px;
+            transition: all 0.2s;
+        }
+        .lang-btn.active {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* Badges Técnicos */
+        .tech-badge {
+            background: rgba(255,255,255,0.15);
+            padding: 8px 14px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex; align-items: center; gap: 8px;
+            backdrop-filter: blur(5px);
+            margin-bottom: 0.5rem;
+        }
+
+        /* === MEDIA QUERIES (MÓVIL) === */
         @media (max-width: 992px) {
-            .login-container { flex-direction: column; height: auto; }
-            
-            /* En móvil, la info va arriba pero ocupa menos espacio vertical inicial */
-            .brand-side { 
-                flex: none; 
-                padding: 3rem 1.5rem; 
-                min-height: auto;
+            .login-wrapper {
+                flex-direction: column; /* Apilar verticalmente */
+            }
+
+            .brand-section {
+                flex: none;
+                padding: 3rem 1.5rem 4rem 1.5rem; /* Padding lateral seguro */
             }
             
-            .form-side { 
-                flex: none; 
-                padding: 2.5rem 1.5rem; 
-                background: white;
-                border-top-left-radius: 24px;
-                border-top-right-radius: 24px;
-                margin-top: -20px; /* Efecto tarjeta solapada */
-                box-shadow: 0 -10px 20px rgba(0,0,0,0.05);
-                z-index: 20;
+            .quote-human { font-size: 1.25rem; }
+            .description-text { font-size: 0.95rem; }
+
+            .form-section {
+                flex: none;
+                min-height: auto; /* Dejar que el contenido defina la altura */
+                padding: 2rem 1.5rem 4rem 1.5rem;
+                border-top-left-radius: 30px;
+                border-top-right-radius: 30px;
+                margin-top: -30px; /* Efecto tarjeta superpuesta */
+                position: relative;
+                z-index: 10;
+                box-shadow: 0 -10px 30px rgba(0,0,0,0.05);
             }
             
-            .quote-clean { font-size: 1.1rem; border-left-width: 3px; padding-left: 1rem; }
-            .sector-desc { font-size: 0.9rem; }
-            
-            /* Ajuste de badges para que fluyan bien en móvil */
-            .tech-row { flex-wrap: wrap; }
+            /* Ajuste de botones de idioma para que no se salgan */
+            .lang-selector-container {
+                justify-content: center; /* Centrado en móvil */
+                margin-bottom: 1.5rem;
+            }
+            .lang-btn { padding: 12px 24px; /* Aún más grande en móvil */ }
         }
     </style>
 
-    <div class="login-container">
-        <!-- LADO A: VISIÓN Y MISIÓN (Visible en Móvil) -->
-        <div class="brand-side">
-            <div class="brand-pattern"></div>
+    <div class="login-wrapper">
+        
+        <!-- SECCIÓN IZQUIERDA (Superior en móvil): PROPUESTA DE VALOR -->
+        <div class="brand-section">
+            <div class="brand-bg-pattern"></div>
             <div style="z-index: 2;">
-                <!-- Header Logo -->
+                <!-- Logo -->
                 <div class="d-flex align-items-center gap-3 mb-4">
-                    <div class="bg-white text-dark rounded-circle d-flex justify-content-center align-items-center shadow-lg" style="width:50px; height:50px;">
-                        <i class="fa-solid fa-brain fa-lg" style="color: var(--primary)"></i>
+                    <div class="bg-white text-dark rounded-circle d-flex justify-content-center align-items-center shadow" style="width:55px; height:55px;">
+                        <i class="fa-solid fa-brain fa-xl" style="color: var(--primary)"></i>
                     </div>
                     <div>
-                        <h1 class="h3 m-0 brand-title">LaMuralla Health</h1>
-                        <small class="text-white text-opacity-75 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Cognitive Recovery Engine</small>
+                        <h1 class="h3 fw-bold m-0 lh-1">LaMuralla Health</h1>
+                        <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Cognitive Recovery Engine</small>
                     </div>
                 </div>
-                
-                <!-- Explicación Tercer Sector -->
-                <div class="quote-clean" id="t-quote">
+
+                <!-- Mensaje Tercer Sector -->
+                <div class="quote-human" id="t-quote">
                     "Humanizando el dato para poner a la persona en el centro de la intervención."
                 </div>
                 
-                <p class="sector-desc" id="t-desc">
-                    Herramienta de apoyo diseñada para <strong>trabajo social, psicología e integración</strong>. 
-                    Procesa historias de vida y notas diarias para detectar patrones de recuperación, generando evidencia cualitativa que respalda tus decisiones clínicas.
+                <p class="description-text" id="t-desc">
+                    Plataforma inteligente de apoyo al <strong>trabajo social y clínico</strong>. 
+                    Transforma notas de evolución e historias de vida en conocimiento estructurado para visualizar la recuperación.
                 </p>
 
-                <!-- Badges Técnicos -->
-                <div class="d-flex gap-2 tech-row mt-3">
-                    <div class="tech-badge" title="Motor de alto rendimiento y seguridad de memoria">
-                        <i class="fa-brands fa-rust text-warning"></i> <span>Rust Engine</span>
+                <!-- Stack Técnico (Badge Rust incluido) -->
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <div class="tech-badge">
+                        <i class="fa-brands fa-rust text-warning"></i> Rust Core
                     </div>
-                    <div class="tech-badge" title="Recuperación Aumentada por Grafos">
-                        <i class="fa-solid fa-diagram-project text-info"></i> <span>GraphRAG</span>
+                    <div class="tech-badge">
+                        <i class="fa-solid fa-diagram-project text-info"></i> GraphRAG
                     </div>
-                    <div class="tech-badge" title="Privacidad y encriptación robusta">
-                        <i class="fa-solid fa-shield-halved text-success"></i> <span>Secure Core</span>
+                    <div class="tech-badge">
+                        <i class="fa-solid fa-lock text-success"></i> Secure Storage
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- LADO B: ACCESO -->
-        <div class="form-side">
-            <!-- Selector Idioma -->
-            <div class="position-absolute top-0 end-0 m-3">
-                <div class="d-flex gap-1 bg-light rounded-pill p-1">
-                    <button class="btn btn-xs rounded-pill fw-bold text-muted" onclick="setLoginLang('es', this)">ES</button>
-                    <button class="btn btn-xs rounded-pill text-muted" onclick="setLoginLang('ca', this)">CA</button>
-                    <button class="btn btn-xs rounded-pill text-muted" onclick="setLoginLang('en', this)">EN</button>
+        <!-- SECCIÓN DERECHA (Inferior en móvil): FORMULARIO -->
+        <div class="form-section">
+            <div class="login-box animate__animated animate__fadeInUp">
+                
+                <!-- Selector de Idioma (Dentro del flujo, fácil de tocar) -->
+                <div class="lang-selector-container">
+                    <button class="lang-btn active" onclick="changeLang('es', this)">Español</button>
+                    <button class="lang-btn" onclick="changeLang('ca', this)">Català</button>
+                    <button class="lang-btn" onclick="changeLang('en', this)">English</button>
                 </div>
-            </div>
 
-            <div class="login-card animate__animated animate__fadeInUp">
-                <div class="text-center mb-4">
-                    <h3 class="fw-bold text-dark" id="t-login-title">Acceso Profesional</h3>
-                    <p class="text-muted small" id="t-login-subtitle">Área restringida a equipo técnico.</p>
+                <div class="mb-4 text-center text-lg-start">
+                    <h2 class="fw-bold text-dark" id="t-login-title">Acceso Profesional</h2>
+                    <p class="text-muted" id="t-login-subtitle">Introduce tus credenciales de equipo.</p>
                 </div>
 
                 {% if error %}
-                <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger rounded-3 mb-4 d-flex align-items-center gap-2 small">
-                    <i class="fa-solid fa-circle-exclamation"></i> <span>{{ error }}</span>
+                <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger rounded-3 mb-4 d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation flex-shrink-0"></i> 
+                    <span class="small">{{ error }}</span>
                 </div>
                 {% endif %}
 
                 <form method="POST" action="/">
                     <div class="mb-3">
-                        <label class="form-label text-xs fw-bold text-muted text-uppercase" id="t-lbl-user">Identificador</label>
+                        <label class="form-label fw-bold text-muted small text-uppercase ps-1" id="t-lbl-user">Identificador</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-light border-0"><i class="fa-regular fa-user text-muted"></i></span>
-                            <input type="text" name="username" class="form-control form-control-custom border-start-0 ps-0" placeholder="usuario" required>
+                            <span class="input-group-text bg-light border-0 ps-3"><i class="fa-regular fa-user text-muted"></i></span>
+                            <input type="text" name="username" class="form-control input-touch border-start-0" placeholder="usuario" required>
                         </div>
                     </div>
+
                     <div class="mb-4">
-                        <label class="form-label text-xs fw-bold text-muted text-uppercase" id="t-lbl-pass">Clave de Acceso</label>
+                        <label class="form-label fw-bold text-muted small text-uppercase ps-1" id="t-lbl-pass">Clave de Acceso</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-light border-0"><i class="fa-solid fa-lock text-muted"></i></span>
-                            <input type="password" name="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="••••••••" required>
+                            <span class="input-group-text bg-light border-0 ps-3"><i class="fa-solid fa-lock text-muted"></i></span>
+                            <input type="password" name="password" class="form-control input-touch border-start-0" placeholder="••••••••" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary-custom w-100 py-2 shadow-md" id="t-btn-enter">
-                        INICIAR SESIÓN
+
+                    <button type="submit" class="btn btn-primary-custom w-100 btn-touch shadow" id="t-btn-enter">
+                        ENTRAR
                     </button>
                 </form>
 
-                <div class="mt-4 text-center">
-                    <small class="text-muted text-xs">
-                        &copy; 2025 LaMuralla Project. <br>
-                        <span class="opacity-75">Desarrollado en Rust por <a href="https://angelurbinacv.netlify.app/" class="text-decoration-none text-muted fw-bold">Ángel A. Urbina</a></span>
+                <div class="mt-5 text-center border-top pt-4">
+                    <small class="text-muted">
+                        Desarrollado con <i class="fa-solid fa-heart text-danger"></i> y <strong>Rust</strong> por <br>
+                        <a href="https://angelurbinacv.netlify.app/" target="_blank" class="text-dark fw-bold text-decoration-none">Ángel A. Urbina</a>
                     </small>
                 </div>
             </div>
@@ -218,58 +271,62 @@
     const TRAD = {
         es: { 
             quote: '"Humanizando el dato para poner a la persona en el centro de la intervención."', 
-            desc: "Herramienta de apoyo diseñada para <strong>trabajo social, psicología e integración</strong>. Procesa historias de vida y notas diarias para detectar patrones de recuperación, generando evidencia cualitativa que respalda tus decisiones clínicas.",
+            desc: "Plataforma inteligente de apoyo al <strong>trabajo social y clínico</strong>. Transforma notas de evolución e historias de vida en conocimiento estructurado para visualizar la recuperación.",
             title: "Acceso Profesional", 
-            sub: "Área restringida a equipo técnico.", 
+            sub: "Introduce tus credenciales de equipo.", 
             usr: "IDENTIFICADOR", 
             pwd: "CLAVE DE ACCESO", 
-            btn: "INICIAR SESIÓN" 
+            btn: "ENTRAR" 
         },
         ca: { 
             quote: '"Humanitzant la dada per posar la persona al centre de la intervenció."', 
-            desc: "Eina de suport dissenyada per a <strong>treball social, psicologia i integració</strong>. Processa històries de vida i notes diàries per detectar patrons de recuperació, generant evidència qualitativa que recolza les teves decisions clíniques.",
+            desc: "Plataforma intel·ligent de suport al <strong>treball social i clínic</strong>. Transforma notes d'evolució i històries de vida en coneixement estructurat per visualitzar la recuperació.",
             title: "Accés Professional", 
-            sub: "Àrea restringida a equip tècnic.", 
+            sub: "Introdueix les teves credencials d'equip.", 
             usr: "IDENTIFICADOR", 
             pwd: "CLAU D'ACCÉS", 
-            btn: "INICIAR SESSIÓ" 
+            btn: "ENTRAR" 
         },
         en: { 
             quote: '"Humanizing data to put the person at the center of the intervention."', 
-            desc: "Support tool designed for <strong>social work, psychology, and integration</strong>. It processes life stories and daily notes to detect recovery patterns, generating qualitative evidence that backs your clinical decisions.",
+            desc: "Intelligent support platform for <strong>social and clinical work</strong>. Transforms progress notes and life stories into structured knowledge to visualize recovery.",
             title: "Professional Access", 
-            sub: "Restricted area for technical staff.", 
+            sub: "Enter your team credentials.", 
             usr: "IDENTIFIER", 
             pwd: "ACCESS KEY", 
             btn: "LOGIN" 
         }
     };
 
-    function setLoginLang(lang, btn) {
+    function changeLang(lang, btn) {
         localStorage.setItem('lamuralla_lang', lang);
-        const t = TRAD[lang];
-        if(!t) return;
-        document.getElementById('t-quote').innerText = t.quote;
-        document.getElementById('t-desc').innerHTML = t.desc;
-        document.getElementById('t-login-title').innerText = t.title;
-        document.getElementById('t-login-subtitle').innerText = t.sub;
-        document.getElementById('t-lbl-user').innerText = t.usr;
-        document.getElementById('t-lbl-pass').innerText = t.pwd;
-        document.getElementById('t-btn-enter').innerText = t.btn;
         
-        // Reset buttons style (simple logic)
-        document.querySelectorAll('button[onclick^="setLoginLang"]').forEach(b => {
-            b.classList.remove('fw-bold');
-            b.classList.add('text-muted');
-        });
-        if(btn) {
-            btn.classList.add('fw-bold');
-            btn.classList.remove('text-muted');
+        // Update Text
+        const t = TRAD[lang];
+        if(t) {
+            document.getElementById('t-quote').innerText = t.quote;
+            document.getElementById('t-desc').innerHTML = t.desc;
+            document.getElementById('t-login-title').innerText = t.title;
+            document.getElementById('t-login-subtitle').innerText = t.sub;
+            document.getElementById('t-lbl-user').innerText = t.usr;
+            document.getElementById('t-lbl-pass').innerText = t.pwd;
+            document.getElementById('t-btn-enter').innerText = t.btn;
+        }
+
+        // Update Buttons
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        else {
+             // Fallback visual si se llama al cargar
+             // (Lógica simplificada para demo)
         }
     }
 
     window.addEventListener('DOMContentLoaded', () => { 
-        setLoginLang(localStorage.getItem('lamuralla_lang') || 'es'); 
+        const lang = localStorage.getItem('lamuralla_lang') || 'es';
+        // Simular click para activar estilo visual correcto
+        const btn = Array.from(document.querySelectorAll('.lang-btn')).find(b => b.innerText.toLowerCase().includes(lang === 'ca' ? 'català' : (lang === 'en' ? 'english' : 'español')));
+        changeLang(lang, btn);
     });
 </script>
 {% endblock scripts %}
