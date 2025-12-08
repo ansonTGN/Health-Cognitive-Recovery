@@ -1,28 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-    {# 1. Importar Estilos CSS Específicos #}
     {% include "components/styles.html" %}
-
-    {# 2. Barra de Navegación Superior #}
     {% include "components/navbar.html" %}
     
-    {# 3. Contenedor Principal de la Aplicación #}
     <div class="app-container">
-        <!-- Panel Izquierdo: Visualización del Grafo -->
         {% include "panels/graph.html" %}
-        
-        <!-- Panel Derecho: Herramientas (Chat, Detalles, Admin) -->
         {% include "panels/sidebar.html" %}
     </div>
 
-    <!-- Botón Flotante para Móvil -->
-    <button class="d-lg-none btn btn-primary rounded-circle shadow-lg position-fixed bottom-0 end-0 m-4" style="width: 50px; height: 50px; z-index: 100; background-color: var(--primary);" onclick="toggleSidebar()">
-        <i class="fa-solid fa-bars-staggered"></i>
+    <!-- Mobile Toggle Button -->
+    <button class="d-lg-none btn text-white position-fixed bottom-0 end-0 m-3 mobile-fab d-flex align-items-center justify-content-center" style="z-index: 1000;" onclick="toggleSidebar()">
+        <i class="fa-solid fa-layer-group fa-lg"></i>
     </button>
 {% endblock %}
 
 {% block scripts %}
-    {# 4. Lógica Javascript (Vis.js, Fetch, Chat) #}
     {% include "scripts/main.html" %}
 {% endblock %}

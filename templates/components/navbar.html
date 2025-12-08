@@ -1,32 +1,35 @@
-<nav class="navbar navbar-light bg-white border-bottom fixed-top px-4" style="height: 65px; z-index: 1000;">
-    <div class="d-flex align-items-center gap-3">
-        <div class="bg-primary-custom text-white rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;">
-            <i class="fa-solid fa-brain"></i>
-        </div>
-        <div class="d-flex flex-column d-none d-sm-flex">
-            <span class="fw-xbold text-dark lh-1 fs-6">LaMuralla Health</span>
-            <span class="text-xs text-muted fw-bold text-uppercase tracking-wide" id="nav-subtitle">Cognitive Recovery Engine</span>
-        </div>
-    </div>
-    <div class="d-flex align-items-center gap-4">
-        <!-- Quick Lang Selector -->
-        <div class="lang-pill">
-            <button class="lang-btn" id="btn-es" onclick="setAppLanguage('es')">ES</button>
-            <button class="lang-btn" id="btn-ca" onclick="setAppLanguage('ca')">CA</button>
-            <button class="lang-btn" id="btn-en" onclick="setAppLanguage('en')">EN</button>
-        </div>
-
-        <div class="vr opacity-25"></div>
-
-        <!-- Profile -->
+<nav class="navbar navbar-expand bg-white border-bottom fixed-top px-4 shadow-sm" style="height: var(--navbar-height); z-index: 1000;">
+    <div class="container-fluid p-0">
         <div class="d-flex align-items-center gap-3">
-            <div class="text-end lh-1 d-none d-sm-block">
-                <div class="fw-bold text-dark text-xs">{{ username }}</div>
-                <div class="text-xs text-primary-custom">{{ role }}</div>
+            <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center shadow-sm border" style="width: 42px; height: 42px;">
+                <i class="fa-solid fa-brain"></i>
             </div>
-            <a href="/logout" class="btn btn-outline-danger btn-sm border-0 rounded-circle" title="Salir">
-                <i class="fa-solid fa-power-off"></i>
-            </a>
+            <div class="d-flex flex-column">
+                <span class="fw-bold text-dark lh-1 fs-5 tracking-tight">LaMuralla Health</span>
+                <span class="text-xs text-muted fw-bold text-uppercase tracking-wide" style="font-size: 0.65rem; letter-spacing: 1px;" id="nav-subtitle">Cognitive Recovery Engine</span>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-4 ms-auto">
+            <!-- Lang -->
+            <div class="d-none d-md-flex bg-light rounded-pill p-1 border">
+                <button class="btn btn-sm btn-link text-decoration-none text-muted fw-bold px-2 py-0 rounded-pill" style="font-size: 0.75rem" id="btn-es" onclick="setAppLanguage('es')">ES</button>
+                <button class="btn btn-sm btn-link text-decoration-none text-muted fw-bold px-2 py-0 rounded-pill" style="font-size: 0.75rem" id="btn-ca" onclick="setAppLanguage('ca')">CA</button>
+                <button class="btn btn-sm btn-link text-decoration-none text-muted fw-bold px-2 py-0 rounded-pill" style="font-size: 0.75rem" id="btn-en" onclick="setAppLanguage('en')">EN</button>
+            </div>
+
+            <div class="vr opacity-25 d-none d-md-block"></div>
+
+            <!-- User Profile -->
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end lh-1 d-none d-sm-block">
+                    <div class="fw-bold text-dark text-sm">{{ username }}</div>
+                    <span class="badge bg-primary-light text-primary border border-primary-subtle" style="font-size: 0.65rem;">{{ role }}</span>
+                </div>
+                <a href="/logout" class="btn btn-light text-danger btn-sm border rounded-circle d-flex align-items-center justify-content-center" style="width:36px; height:36px;" title="Cerrar Sesión">
+                    <i class="fa-solid fa-power-off"></i>
+                </a>
+            </div>
         </div>
     </div>
 </nav>

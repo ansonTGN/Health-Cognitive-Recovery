@@ -1,96 +1,213 @@
 {% extends "base.html" %}
 
-{% block title %}Acceso Profesional{% endblock %}
+{% block title %}LaMuralla - Acceso Profesional{% endblock %}
 
 {% block content %}
     <style>
-        .split-layout { display: flex; height: 100vh; width: 100%; }
-        .info-side { flex: 1.2; background: linear-gradient(135deg, #00695c 0%, #004d40 100%); color: white; padding: 4rem; position: relative; overflow-y: auto; display: flex; flex-direction: column; justify-content: center; }
-        .info-pattern { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.05; background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 30px 30px; }
-        .form-side { flex: 1; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; position: relative; }
-        .login-card { width: 100%; max-width: 380px; }
-        .quote-box { border-left: 4px solid #ffab91; background: rgba(255,255,255,0.1); padding: 1.5rem; margin: 2rem 0; font-style: italic; border-radius: 0 8px 8px 0; }
-        @media (max-width: 900px) { .info-side { display: none; } }
+        /* Layout Base (Escritorio) */
+        .login-container { 
+            display: flex; 
+            min-height: 100vh; 
+            width: 100%; 
+            background: #fff;
+        }
+        
+        /* Lado Izquierdo: Misión y Branding */
+        .brand-side { 
+            flex: 1.2; 
+            background-color: #264653; 
+            background-image: linear-gradient(135deg, #264653 0%, #2A9D8F 100%);
+            position: relative; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            padding: 5rem;
+            overflow: hidden;
+        }
+        
+        /* Patrón de fondo sutil */
+        .brand-pattern {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.1;
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 2px, transparent 2px, transparent 10px);
+        }
+
+        /* Lado Derecho: Formulario */
+        .form-side { 
+            flex: 1; 
+            background: #fff; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 3rem; 
+            position: relative;
+        }
+
+        .login-card { width: 100%; max-width: 400px; z-index: 10; }
+
+        /* Estilos de Texto */
+        .brand-title { font-weight: 800; letter-spacing: -1px; }
+        .quote-clean {
+            font-family: 'Manrope', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 300;
+            line-height: 1.5;
+            opacity: 0.95;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--accent);
+            padding-left: 1.5rem;
+        }
+        .sector-desc { font-size: 0.95rem; line-height: 1.6; opacity: 0.85; margin-bottom: 2rem; max-width: 600px; }
+        
+        /* Inputs */
+        .form-control-custom {
+            border: 2px solid #f0f2f5;
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 12px 15px;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+        .form-control-custom:focus {
+            background-color: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.15);
+            outline: none;
+        }
+
+        /* Badges Técnicos */
+        .tech-badge {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex; align-items: center; gap: 6px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* === RESPONSIVE MOBILE (La magia ocurre aquí) === */
+        @media (max-width: 992px) {
+            .login-container { flex-direction: column; height: auto; }
+            
+            /* En móvil, la info va arriba pero ocupa menos espacio vertical inicial */
+            .brand-side { 
+                flex: none; 
+                padding: 3rem 1.5rem; 
+                min-height: auto;
+            }
+            
+            .form-side { 
+                flex: none; 
+                padding: 2.5rem 1.5rem; 
+                background: white;
+                border-top-left-radius: 24px;
+                border-top-right-radius: 24px;
+                margin-top: -20px; /* Efecto tarjeta solapada */
+                box-shadow: 0 -10px 20px rgba(0,0,0,0.05);
+                z-index: 20;
+            }
+            
+            .quote-clean { font-size: 1.1rem; border-left-width: 3px; padding-left: 1rem; }
+            .sector-desc { font-size: 0.9rem; }
+            
+            /* Ajuste de badges para que fluyan bien en móvil */
+            .tech-row { flex-wrap: wrap; }
+        }
     </style>
-    <div class="split-layout">
-        <!-- Izquierda: Propuesta de Valor -->
-        <div class="info-side">
-            <div class="info-pattern"></div>
-            <div style="z-index: 2; max-width: 600px; margin: 0 auto;">
+
+    <div class="login-container">
+        <!-- LADO A: VISIÓN Y MISIÓN (Visible en Móvil) -->
+        <div class="brand-side">
+            <div class="brand-pattern"></div>
+            <div style="z-index: 2;">
+                <!-- Header Logo -->
                 <div class="d-flex align-items-center gap-3 mb-4">
-                    <div class="bg-white text-primary rounded-circle p-2 d-flex justify-content-center align-items-center" style="width:50px; height:50px;">
-                        <i class="fa-solid fa-heart-pulse fa-lg"></i>
+                    <div class="bg-white text-dark rounded-circle d-flex justify-content-center align-items-center shadow-lg" style="width:50px; height:50px;">
+                        <i class="fa-solid fa-brain fa-lg" style="color: var(--primary)"></i>
                     </div>
-                    <h1 class="fw-xbold m-0 display-6">LaMuralla Health</h1>
+                    <div>
+                        <h1 class="h3 m-0 brand-title">LaMuralla Health</h1>
+                        <small class="text-white text-opacity-75 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Cognitive Recovery Engine</small>
+                    </div>
                 </div>
                 
-                <h4 class="mb-3" id="t-h4">Sistema de Inteligencia Cognitiva</h4>
-                <div class="quote-box" id="t-quote">"Transformando historias de vida en evidencia para la recuperación."</div>
+                <!-- Explicación Tercer Sector -->
+                <div class="quote-clean" id="t-quote">
+                    "Humanizando el dato para poner a la persona en el centro de la intervención."
+                </div>
                 
-                <p class="opacity-90 lh-lg" id="t-p1">
-                    Plataforma especializada para <strong>salud mental y trabajo social</strong>. 
-                    Analiza notas de evolución, detecta patrones de recuperación y estructura la evidencia diaria mediante grafos de conocimiento.
+                <p class="sector-desc" id="t-desc">
+                    Herramienta de apoyo diseñada para <strong>trabajo social, psicología e integración</strong>. 
+                    Procesa historias de vida y notas diarias para detectar patrones de recuperación, generando evidencia cualitativa que respalda tus decisiones clínicas.
                 </p>
 
-                <div class="mt-4 pt-4 border-top border-white border-opacity-25 text-sm opacity-75">
-                    <div class="d-flex align-items-center gap-4">
-                        <span><i class="fa-solid fa-shield-halved me-2"></i>Secure Core</span>
-                        <span><i class="fa-solid fa-brain me-2"></i>GraphRAG AI</span>
-                        <span><i class="fa-solid fa-file-medical me-2"></i>Ontology Based</span>
+                <!-- Badges Técnicos -->
+                <div class="d-flex gap-2 tech-row mt-3">
+                    <div class="tech-badge" title="Motor de alto rendimiento y seguridad de memoria">
+                        <i class="fa-brands fa-rust text-warning"></i> <span>Rust Engine</span>
+                    </div>
+                    <div class="tech-badge" title="Recuperación Aumentada por Grafos">
+                        <i class="fa-solid fa-diagram-project text-info"></i> <span>GraphRAG</span>
+                    </div>
+                    <div class="tech-badge" title="Privacidad y encriptación robusta">
+                        <i class="fa-solid fa-shield-halved text-success"></i> <span>Secure Core</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Derecha: Acceso -->
+        <!-- LADO B: ACCESO -->
         <div class="form-side">
-            <!-- Lang Selector -->
-            <div class="position-absolute top-0 end-0 m-4">
-                <div class="lang-pill">
-                    <button class="lang-btn active" onclick="setLoginLang('es', this)">ES</button>
-                    <button class="lang-btn" onclick="setLoginLang('ca', this)">CA</button>
-                    <button class="lang-btn" onclick="setLoginLang('en', this)">EN</button>
+            <!-- Selector Idioma -->
+            <div class="position-absolute top-0 end-0 m-3">
+                <div class="d-flex gap-1 bg-light rounded-pill p-1">
+                    <button class="btn btn-xs rounded-pill fw-bold text-muted" onclick="setLoginLang('es', this)">ES</button>
+                    <button class="btn btn-xs rounded-pill text-muted" onclick="setLoginLang('ca', this)">CA</button>
+                    <button class="btn btn-xs rounded-pill text-muted" onclick="setLoginLang('en', this)">EN</button>
                 </div>
             </div>
 
-            <div class="login-card animate__animated animate__fadeIn">
-                <div class="text-center mb-5">
+            <div class="login-card animate__animated animate__fadeInUp">
+                <div class="text-center mb-4">
                     <h3 class="fw-bold text-dark" id="t-login-title">Acceso Profesional</h3>
-                    <p class="text-muted small" id="t-login-subtitle">Introduce tus credenciales corporativas.</p>
+                    <p class="text-muted small" id="t-login-subtitle">Área restringida a equipo técnico.</p>
                 </div>
 
                 {% if error %}
-                <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger small rounded-3 mb-4">
-                    <i class="fa-solid fa-circle-exclamation me-2"></i> {{ error }}
+                <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger rounded-3 mb-4 d-flex align-items-center gap-2 small">
+                    <i class="fa-solid fa-circle-exclamation"></i> <span>{{ error }}</span>
                 </div>
                 {% endif %}
 
                 <form method="POST" action="/">
                     <div class="mb-3">
-                        <label class="form-label text-xs fw-bold text-muted" id="t-lbl-user">USUARIO</label>
+                        <label class="form-label text-xs fw-bold text-muted text-uppercase" id="t-lbl-user">Identificador</label>
                         <div class="input-group">
-                            <span class="input-group-text border-end-0 bg-light"><i class="fa-regular fa-user text-muted"></i></span>
-                            <input type="text" name="username" class="form-control border-start-0 bg-light" required>
+                            <span class="input-group-text bg-light border-0"><i class="fa-regular fa-user text-muted"></i></span>
+                            <input type="text" name="username" class="form-control form-control-custom border-start-0 ps-0" placeholder="usuario" required>
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label text-xs fw-bold text-muted" id="t-lbl-pass">CONTRASEÑA</label>
+                        <label class="form-label text-xs fw-bold text-muted text-uppercase" id="t-lbl-pass">Clave de Acceso</label>
                         <div class="input-group">
-                            <span class="input-group-text border-end-0 bg-light"><i class="fa-solid fa-lock text-muted"></i></span>
-                            <input type="password" name="password" class="form-control border-start-0 bg-light" required>
+                            <span class="input-group-text bg-light border-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                            <input type="password" name="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="••••••••" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn-login-custom" id="t-btn-enter">ENTRAR</button>
+                    <button type="submit" class="btn btn-primary-custom w-100 py-2 shadow-md" id="t-btn-enter">
+                        INICIAR SESIÓN
+                    </button>
                 </form>
-            </div>
 
-            <!-- Author Footer -->
-            <div class="position-absolute bottom-0 w-100 text-center pb-4">
-                <a href="https://angelurbinacv.netlify.app/" target="_blank" class="dev-signature justify-content-center bg-transparent border-0" style="color:var(--dark);" title="Ver Perfil Profesional">
-                    <span class="text-muted">Diseñado y Desarrollado por</span>
-                    <strong>Ángel A. Urbina</strong>
-                    <i class="fa-solid fa-external-link-alt text-xs ms-1"></i>
-                </a>
+                <div class="mt-4 text-center">
+                    <small class="text-muted text-xs">
+                        &copy; 2025 LaMuralla Project. <br>
+                        <span class="opacity-75">Desarrollado en Rust por <a href="https://angelurbinacv.netlify.app/" class="text-decoration-none text-muted fw-bold">Ángel A. Urbina</a></span>
+                    </small>
+                </div>
             </div>
         </div>
     </div>
@@ -98,34 +215,61 @@
 
 {% block scripts %}
 <script>
-    const LOGIN_TRADS = {
-        es: { h4: 'Sistema de Inteligencia Cognitiva', quote: '"Transformando historias de vida en evidencia para la recuperación."', p1: 'Plataforma especializada para <strong>salud mental y trabajo social</strong>. Analiza notas de evolución, detecta patrones de recuperación y estructura la evidencia diaria mediante grafos de conocimiento.', title: "Acceso Profesional", sub: "Introduce tus credenciales corporativas.", usr: "USUARIO", pwd: "CONTRASEÑA", btn: "ENTRAR" },
-        ca: { h4: 'Sistema d\'Intel·ligència Cognitiva', quote: '"Transformant històries de vida en evidència per a la recuperació."', p1: 'Plataforma especialitzada per a <strong>salut mental i treball social</strong>. Analitza notes d\'evolució, detecta patrons de recuperació i estructura l\'evidència diària mitjançant grafs de coneixement.', title: "Accés Professional", sub: "Introdueix les teves credencials corporatives.", usr: "USUARI", pwd: "CONTRASENYA", btn: "ENTRAR" },
-        en: { h4: 'Cognitive Intelligence System', quote: '"Turning life stories into evidence for recovery."', p1: 'Specialized platform for <strong>mental health and social work</strong>. Analyzes progress notes, detects recovery patterns, and structures daily evidence using knowledge graphs.', title: "Professional Access", sub: "Enter your corporate credentials.", usr: "USERNAME", pwd: "PASSWORD", btn: "ENTER" }
+    const TRAD = {
+        es: { 
+            quote: '"Humanizando el dato para poner a la persona en el centro de la intervención."', 
+            desc: "Herramienta de apoyo diseñada para <strong>trabajo social, psicología e integración</strong>. Procesa historias de vida y notas diarias para detectar patrones de recuperación, generando evidencia cualitativa que respalda tus decisiones clínicas.",
+            title: "Acceso Profesional", 
+            sub: "Área restringida a equipo técnico.", 
+            usr: "IDENTIFICADOR", 
+            pwd: "CLAVE DE ACCESO", 
+            btn: "INICIAR SESIÓN" 
+        },
+        ca: { 
+            quote: '"Humanitzant la dada per posar la persona al centre de la intervenció."', 
+            desc: "Eina de suport dissenyada per a <strong>treball social, psicologia i integració</strong>. Processa històries de vida i notes diàries per detectar patrons de recuperació, generant evidència qualitativa que recolza les teves decisions clíniques.",
+            title: "Accés Professional", 
+            sub: "Àrea restringida a equip tècnic.", 
+            usr: "IDENTIFICADOR", 
+            pwd: "CLAU D'ACCÉS", 
+            btn: "INICIAR SESSIÓ" 
+        },
+        en: { 
+            quote: '"Humanizing data to put the person at the center of the intervention."', 
+            desc: "Support tool designed for <strong>social work, psychology, and integration</strong>. It processes life stories and daily notes to detect recovery patterns, generating qualitative evidence that backs your clinical decisions.",
+            title: "Professional Access", 
+            sub: "Restricted area for technical staff.", 
+            usr: "IDENTIFIER", 
+            pwd: "ACCESS KEY", 
+            btn: "LOGIN" 
+        }
     };
 
     function setLoginLang(lang, btn) {
         localStorage.setItem('lamuralla_lang', lang);
-        const t = LOGIN_TRADS[lang];
-        if (!t) return;
-        document.getElementById('t-h4').innerText = t.h4;
-        document.getElementById('t-quote').innerHTML = t.quote;
-        document.getElementById('t-p1').innerHTML = t.p1;
+        const t = TRAD[lang];
+        if(!t) return;
+        document.getElementById('t-quote').innerText = t.quote;
+        document.getElementById('t-desc').innerHTML = t.desc;
         document.getElementById('t-login-title').innerText = t.title;
         document.getElementById('t-login-subtitle').innerText = t.sub;
         document.getElementById('t-lbl-user').innerText = t.usr;
         document.getElementById('t-lbl-pass').innerText = t.pwd;
         document.getElementById('t-btn-enter').innerText = t.btn;
         
-        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-        if(btn) btn.classList.add('active');
-        
-        if(!btn) document.querySelector(`.lang-btn[onclick*="'${lang}'"]`).classList.add('active');
+        // Reset buttons style (simple logic)
+        document.querySelectorAll('button[onclick^="setLoginLang"]').forEach(b => {
+            b.classList.remove('fw-bold');
+            b.classList.add('text-muted');
+        });
+        if(btn) {
+            btn.classList.add('fw-bold');
+            btn.classList.remove('text-muted');
+        }
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-        const savedLang = localStorage.getItem('lamuralla_lang') || 'es';
-        setLoginLang(savedLang);
+    window.addEventListener('DOMContentLoaded', () => { 
+        setLoginLang(localStorage.getItem('lamuralla_lang') || 'es'); 
     });
 </script>
 {% endblock scripts %}

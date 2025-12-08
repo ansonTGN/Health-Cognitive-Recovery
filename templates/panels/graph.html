@@ -1,16 +1,19 @@
 <div class="pane-graph">
-    <div class="legend-floating">
-        <h6 class="fw-bold text-uppercase text-muted mb-2 border-bottom pb-1 text-xs" id="t-legend">Leyenda</h6>
-        <div class="legend-row"><span class="dot" style="background:var(--node-person)"></span> <span id="l-person">Persona</span></div>
-        <div class="legend-row"><span class="dot" style="background:var(--node-condition)"></span> <span id="l-condition">Condición</span></div>
-        <div class="legend-row"><span class="dot" style="background:var(--node-intervention)"></span> <span id="l-interv">Intervención</span></div>
-        <div class="legend-row"><span class="dot" style="background:var(--node-outcome)"></span> <span id="l-outcome">Resultado</span></div>
-        <div class="legend-row"><span class="dot" style="background:var(--node-resource)"></span> <span id="l-resource">Recurso</span></div>
+    <div class="legend-floating animate__animated animate__fadeInLeft">
+        <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2" style="font-size: 0.7rem; letter-spacing: 1px;" id="t-legend">Ontología Clínica</h6>
+        <div class="d-flex flex-column gap-2">
+            <div class="d-flex align-items-center gap-2"><span class="dot" style="background:var(--node-person)"></span> <span id="l-person" class="text-sm">Persona</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="dot" style="background:var(--node-condition)"></span> <span id="l-condition" class="text-sm">Condición / Síntoma</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="dot" style="background:var(--node-intervention)"></span> <span id="l-interv" class="text-sm">Intervención</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="dot" style="background:var(--node-outcome)"></span> <span id="l-outcome" class="text-sm">Resultado</span></div>
+            <div class="d-flex align-items-center gap-2"><span class="dot" style="background:var(--node-resource)"></span> <span id="l-resource" class="text-sm">Recurso Comunitario</span></div>
+        </div>
     </div>
-    <div id="network-container" style="width: 100%; height: 100%;"></div>
     
-    <div class="position-absolute bottom-0 end-0 p-4 d-flex gap-2">
-        <button class="btn btn-white shadow-sm border text-muted bg-white" onclick="network.fit({animation:true})"><i class="fa-solid fa-expand"></i></button>
-        <button class="btn btn-white shadow-sm border text-muted bg-white" onclick="reloadGraph()"><i class="fa-solid fa-rotate"></i></button>
+    <div id="network-container"></div>
+    
+    <div class="graph-controls">
+        <button class="btn-graph" onclick="network.fit({animation:true})" title="Centrar"><i class="fa-solid fa-compress-arrows-alt"></i></button>
+        <button class="btn-graph" onclick="reloadGraph()" title="Recargar"><i class="fa-solid fa-sync-alt"></i></button>
     </div>
 </div>
