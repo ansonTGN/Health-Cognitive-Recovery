@@ -1,9 +1,18 @@
+Aquí tienes el archivo `README.md` definitivo. Ha sido redactado siguiendo los estándares profesionales de la comunidad Open Source, con un desglose detallado de las capacidades del Frontend (basado en el código real que hemos generado) y la información de contacto del autor.
+
+---
+
 # LaMuralla Health: Cognitive Recovery Engine
+
+<div align="center">
 
 ![Rust](https://img.shields.io/badge/Core-Rust_1.80+-orange?style=for-the-badge&logo=rust)
 ![Neo4j](https://img.shields.io/badge/Graph_DB-Neo4j_5+-008CC1?style=for-the-badge&logo=neo4j&logoColor=white)
+![Frontend](https://img.shields.io/badge/Frontend-Tera_%26_Vis.js-yellow?style=for-the-badge&logo=javascript)
 ![Security](https://img.shields.io/badge/Security-RBAC_%26_JWT-green?style=for-the-badge&logo=shield)
 ![Domain](https://img.shields.io/badge/Domain-Mental_Health-red?style=for-the-badge&logo=heart)
+
+</div>
 
 ---
 
@@ -17,70 +26,53 @@
 ### ❤️ Para el Sector Social: ¿Qué es LaMuralla?
 > *"Transformando historias de vida en evidencia para la recuperación."*
 
-Si trabajas en **salud mental, trabajo social o integración comunitaria**, sabes que la parte más importante de tu trabajo queda escrita en notas de evolución, memorias de actividades y observaciones diarias. Sin embargo, esa información a menudo se pierde o es difícil de analizar en conjunto.
+Si trabajas en **salud mental, trabajo social o integración comunitaria**, sabes que la parte más importante de tu trabajo queda escrita en notas de evolución, memorias de actividades y observaciones diarias. Sin embargo, esa información cualitativa a menudo se pierde en archivadores o es difícil de analizar en conjunto.
 
-**LaMuralla Health** es un asistente inteligente que lee y "comprende" esos textos. No solo guarda la información, sino que **conecta los puntos**:
-*   Detecta automáticamente si un usuario que asiste al *Club Social* (Intervención) mejora su *Autoestima* (Resultado).
-*   Te permite preguntar: *"¿Qué actividades están generando mayor vínculo comunitario?"*
-*   Ayuda a justificar decisiones basándose en la evidencia real del día a día, apoyando el **Modelo de Recuperación**.
+**LaMuralla Health** es un sistema de inteligencia cognitiva que lee y "comprende" esos textos. No solo guarda la información, sino que **conecta los puntos** para apoyar el **Modelo de Recuperación**:
+
+*   **Evidencia Automática:** Detecta si un usuario que asiste al *Club Social* (Intervención) mejora su *Autoestima* (Resultado) basándose en las notas diarias.
+*   **Consultas Naturales:** Permite preguntar: *"¿Qué actividades están generando mayor vínculo comunitario en el último mes?"*.
+*   **Visión Holística:** Visualiza la red de apoyos, síntomas y recursos de cada persona, evitando que la información vital quede aislada.
 
 ---
 
 ### 💻 Documentación Técnica
 
-#### Introducción: Sistema de Inteligencia Cognitiva
-**LaMuralla Health** es un motor RAG (Retrieval-Augmented Generation) avanzado que transforma texto libre clínico/social en un **Grafo de Conocimiento**. Utiliza una ontología estricta (*Persona, Condición, Intervención, Recurso, Resultado*) para estructurar datos no estructurados y permitir razonamiento complejo mediante IA.
+#### Introducción: Motor GraphRAG
+**LaMuralla Health** es un motor **GraphRAG (Retrieval-Augmented Generation)**. A diferencia de los chatbots tradicionales, este sistema construye un **Grafo de Conocimiento** dinámico. Utiliza una arquitectura hexagonal en **Rust (Axum)** para orquestar la ingesta de documentos, la vectorización (Embeddings) y el razonamiento lógico mediante LLMs, persistiendo los datos en **Neo4j**.
 
-#### 🛡️ Arquitectura de Seguridad (Nueva v2.0)
-El sistema ha sido fortificado para cumplir con estándares de protección de datos y despliegue en producción:
-1.  **RBAC (Control de Acceso Basado en Roles):**
-    *   **Administrador:** Capacidad total (Ingesta de documentos, Configuración de IA, Gestión del Grafo).
-    *   **Usuario (Profesional):** Acceso de solo lectura (Chat Asistente, Visualización, Exportación).
-2.  **Autenticación Robusta:**
-    *   Hashing de contraseñas con **Bcrypt**.
-    *   Sesiones *stateless* mediante **JWT (JSON Web Tokens)**.
-3.  **Protección de Sesión:**
-    *   Cookies firmadas con atributos `HttpOnly`, `Secure` y `SameSite=Strict` para prevenir ataques XSS y CSRF.
-4.  **Defensa Activa:**
-    *   **Rate Limiting:** Protección contra ataques de fuerza bruta y DoS.
-    *   **Secure Headers:** Cabeceras HTTP estrictas para prevenir Clickjacking y sniffing.
+#### 🖥️ Capacidades del Frontend (Interfaz de Usuario)
+La interfaz ha sido diseñada para ser intuitiva, reactiva y segura, renderizada desde el servidor (**SSR**) con **Tera** y potenciada por **Bootstrap 5** y **Vis.js**.
 
-#### ✨ Capacidades Principales
-1.  **GraphRAG Híbrido:** Búsqueda vectorial + Navegación de grafos para respuestas contextuales profundas.
-2.  **Motor de Inferencia:** Deduce relaciones implícitas (ej. Transitividad entre participación y mejora de salud).
-3.  **Interoperabilidad:** Exportación nativa a **JSON-LD** y **RDF/Turtle** (Web Semántica).
-4.  **Rendimiento:** Backend escrito en **Rust (Axum)**, garantizando seguridad de memoria y velocidad.
+1.  **Panel de Visualización de Grafos (Interactivo):**
+    *   Renderizado de nodos categorizados por colores según la ontología clínica (`Person`, `Condition`, `Intervention`, `Outcome`).
+    *   Física de fuerzas para auto-organización del grafo.
+    *   Zoom, paneo y selección de nodos para exploración profunda.
 
-#### 🚀 Despliegue (Docker & Render)
+2.  **Chat Asistente con Evidencia (Citas Interactivas):**
+    *   Interfaz tipo chat para consultas en lenguaje natural.
+    *   **Sistema de Citas `[1]`:** Cada afirmación de la IA incluye referencias a las fuentes originales.
+    *   **Navegación Bidireccional:** Al hacer clic en una cita o en "Ver Grafo", la cámara se mueve automáticamente para enfocar las entidades y relaciones mencionadas en esa evidencia.
 
-El proyecto está dockerizado para un despliegue sencillo en plataformas como Render o Kubernetes.
+3.  **Ficha Técnica de Entidad (Side-Panel):**
+    *   Se despliega automáticamente al seleccionar un nodo.
+    *   **Métricas en Tiempo Real:** Muestra el grado de conexión y relevancia (centralidad) del concepto.
+    *   **Aislamiento de Contexto:** Botón para filtrar el grafo y mostrar solo el "vecindario" del nodo seleccionado (Subgrafo Contextual).
+    *   Listado detallado de relaciones entrantes y salientes.
 
-**Variables de Entorno Requeridas:**
-```env
-# Servidor
-PORT=3000
-RUST_LOG=info
-JWT_SECRET=super_secret_key_base64
+4.  **Gestión y Seguridad (Role-Based UI):**
+    *   **Acceso Diferenciado:** La interfaz cambia según si el usuario es `User` (solo lectura/chat) o `Admin`.
+    *   **Panel de Ingesta (Admin):** Subida de archivos (`PDF`, `DOCX`, `TXT`) o pegado de texto directo con barra de progreso en tiempo real via WebSockets/Streams.
+    *   **Gestión de Equipo (Admin):** Panel completo para dar de alta profesionales, asignar roles y revocar accesos.
 
-# Base de Datos (Neo4j AuraDB o Local)
-NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
-NEO4J_USER=neo4j
-NEO4J_PASS=tu_password
+5.  **Herramientas de Exportación:**
+    *   Descarga del grafo en formatos estándar: **JSON-LD** (Web Semántica), **RDF/Turtle** y **GraphML** (Gephi/Cytoscape).
+    *   Captura de pantalla en alta resolución del estado actual del grafo.
 
-# Credenciales Iniciales
-ADMIN_USER=admin
-ADMIN_PASS=password_seguro
-
-# Inteligencia Artificial
-AI_PROVIDER=openai
-AI_API_KEY=sk-...
-AI_MODEL=gpt-4o
-```
-
-**Ejecución Local:**
-```bash
-cargo run --release
-```
+#### 🛡️ Arquitectura de Seguridad (Backend)
+*   **Autenticación:** JWT (JSON Web Tokens) en cookies `HttpOnly` + `Secure` + `SameSite=Strict`.
+*   **Protección:** Hashing de contraseñas (Bcrypt) y saneamiento de inputs.
+*   **Control de Acceso:** Middlewares en Rust para proteger rutas administrativas.
 
 ---
 
@@ -92,68 +84,46 @@ cargo run --release
 
 If you work in **mental health, social work, or community integration**, you know that the most vital part of your job is written in progress notes, workshop reports, and daily observations. However, that information is often lost or hard to analyze as a whole.
 
-**LaMuralla Health** is an intelligent assistant that reads and "understands" those texts. It doesn't just store information; it **connects the dots**:
-*   It automatically detects if a user attending the *Social Club* (Intervention) improves their *Self-esteem* (Outcome).
-*   It allows you to ask: *"Which activities are generating the most community bonding?"*
-*   It helps justify decisions based on real daily evidence, supporting the **Recovery Model**.
+**LaMuralla Health** is a cognitive intelligence system that reads and "understands" those texts. It doesn't just store information; it **connects the dots** to support the **Recovery Model**:
+
+*   **Automatic Evidence:** It detects if a user attending the *Social Club* (Intervention) improves their *Self-esteem* (Outcome) based on daily notes.
+*   **Natural Queries:** Allows you to ask: *"Which activities are generating the most community bonding?"*
+*   **Holistic View:** Visualizes the network of support, symptoms, and resources for each person.
 
 ---
 
 ### 💻 Technical Documentation
 
-#### Introduction: Cognitive Intelligence Engine
-**LaMuralla Health** is an advanced RAG (Retrieval-Augmented Generation) engine that transforms unstructured clinical/social text into a **Knowledge Graph**. It uses a strict ontology (*Person, Condition, Intervention, Resource, Outcome*) to structure unstructured data and enable complex AI reasoning.
+#### Introduction: GraphRAG Engine
+**LaMuralla Health** is an advanced **GraphRAG (Retrieval-Augmented Generation)** engine. Unlike traditional chatbots, this system builds a dynamic **Knowledge Graph**. It uses a Hexagonal Architecture in **Rust (Axum)** to orchestrate document ingestion, embedding generation, and LLM reasoning, persisting data in **Neo4j**.
 
-#### 🛡️ Security Architecture (New v2.0)
-The system has been hardened to meet data protection standards and production deployment needs:
-1.  **RBAC (Role-Based Access Control):**
-    *   **Admin:** Full capabilities (Data Ingestion, AI Configuration, Graph Management).
-    *   **User (Professional):** Read-only access (Chat Assistant, Visualization, Export).
-2.  **Robust Authentication:**
-    *   Password hashing using **Bcrypt**.
-    *   Stateless sessions via **JWT (JSON Web Tokens)**.
-3.  **Session Protection:**
-    *   Signed cookies with `HttpOnly`, `Secure`, and `SameSite=Strict` attributes to prevent XSS and CSRF attacks.
-4.  **Active Defense:**
-    *   **Rate Limiting:** Protection against brute-force and DoS attacks.
-    *   **Secure Headers:** Strict HTTP headers to prevent Clickjacking and sniffing.
+#### 🖥️ Frontend Capabilities (User Interface)
+The UI is designed to be intuitive, reactive, and secure, utilizing Server-Side Rendering (**SSR**) with **Tera**, **Bootstrap 5**, and **Vis.js**.
 
-#### ✨ Key Features
-1.  **Hybrid GraphRAG:** Vector search + Graph traversal for deep contextual answers.
-2.  **Inference Engine:** Deduces implicit relationships (e.g., Transitivity between participation and health outcomes).
-3.  **Interoperability:** Native export to **JSON-LD** and **RDF/Turtle** (Semantic Web).
-4.  **Performance:** Backend written in **Rust (Axum)**, ensuring memory safety and speed.
+1.  **Graph Visualization Panel (Interactive):**
+    *   Node rendering color-coded by clinical ontology (`Person`, `Condition`, `Intervention`, `Outcome`).
+    *   Force-directed physics for graph self-organization.
+    *   Zoom, pan, and node selection for deep exploration.
 
-#### 🚀 Deployment (Docker & Render)
+2.  **Evidence-Based Assistant Chat:**
+    *   Natural language query interface.
+    *   **Citation System `[1]`:** Every AI claim includes interactive references to original sources.
+    *   **Bi-directional Navigation:** Clicking a citation or "View Graph" automatically moves the camera to focus on the entities and relationships mentioned in that evidence.
 
-The project is Dockerized for easy deployment on platforms like Render or Kubernetes.
+3.  **Entity Detail Card (Side-Panel):**
+    *   Automatically unfolds when a node is selected.
+    *   **Real-time Metrics:** Displays connection degree and relevance (centrality) of the concept.
+    *   **Context Isolation:** Button to filter the graph and show only the selected node's neighborhood (Contextual Subgraph).
+    *   Detailed list of incoming and outgoing relationships.
 
-**Required Environment Variables:**
-```env
-# Server
-PORT=3000
-RUST_LOG=info
-JWT_SECRET=super_secret_key_base64
+4.  **Management & Security (Role-Based UI):**
+    *   **Differentiated Access:** The UI adapts based on the user role: `User` (Read-only/Chat) or `Admin`.
+    *   **Ingestion Panel (Admin):** File upload (`PDF`, `DOCX`, `TXT`) or direct text input with real-time progress bars via streams.
+    *   **Team Management (Admin):** Full panel to register professionals, assign roles, and revoke access.
 
-# Database (Neo4j AuraDB or Local)
-NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
-NEO4J_USER=neo4j
-NEO4J_PASS=your_password
-
-# Initial Credentials
-ADMIN_USER=admin
-ADMIN_PASS=secure_password
-
-# Artificial Intelligence
-AI_PROVIDER=openai
-AI_API_KEY=sk-...
-AI_MODEL=gpt-4o
-```
-
-**Local Run:**
-```bash
-cargo run --release
-```
+5.  **Export Tools:**
+    *   Graph export in standard formats: **JSON-LD** (Semantic Web), **RDF/Turtle**, and **GraphML** (Gephi).
+    *   High-resolution screenshot capture of the current graph state.
 
 ---
 
@@ -165,75 +135,69 @@ cargo run --release
 
 Si treballes en **salut mental, treball social o integració comunitària**, saps que la part més important de la teva feina queda escrita en notes d'evolució, memòries de tallers i observacions diàries. No obstant això, aquesta informació sovint es perd o és difícil d'analitzar en conjunt.
 
-**LaMuralla Health** és un assistent intel·ligent que llegeix i "comprèn" aquests textos. No només guarda la informació, sinó que **connecta els punts**:
-*   Detecta automàticament si un usuari que assisteix al *Club Social* (Intervenció) millora la seva *Autoestima* (Resultat).
-*   Et permet preguntar: *"Quines activitats estan generant més vincle comunitari?"*
-*   Ajuda a justificar decisions basant-se en l'evidència real del dia a dia, donant suport al **Model de Recuperació**.
+**LaMuralla Health** és un sistema d'intel·ligència cognitiva que llegeix i "comprèn" aquests textos. No només guarda la informació, sinó que **connecta els punts**:
+
+*   **Evidència Automàtica:** Detecta si un usuari que assisteix al *Club Social* (Intervenció) millora la seva *Autoestima* (Resultat) basant-se en les notes diàries.
+*   **Consultes Naturals:** Et permet preguntar: *"Quines activitats estan generant més vincle comunitari?"*
+*   **Visió Holística:** Visualitza la xarxa de suports, símptomes i recursos de cada persona.
 
 ---
 
 ### 💻 Documentació Tècnica
 
-#### Introducció: Motor d'Intel·ligència Cognitiva
-**LaMuralla Health** és un motor RAG (Retrieval-Augmented Generation) avançat que transforma text lliure clínic/social en un **Graf de Coneixement**. Utilitza una ontologia estricta (*Persona, Condició, Intervenció, Recurs, Resultat*) per estructurar dades no estructurades i permetre raonament complex mitjançant IA.
+#### Introducció: Motor GraphRAG
+**LaMuralla Health** és un motor **GraphRAG** avançat. A diferència dels xatbots tradicionals, aquest sistema construeix un **Graf de Coneixement** dinàmic. Utilitza una arquitectura hexagonal en **Rust** per orquestrar la ingesta i el raonament lògic, emmagatzemant-ho tot a **Neo4j**.
 
-#### 🛡️ Arquitectura de Seguretat (Nova v2.0)
-El sistema ha estat fortificat per complir amb estàndards de protecció de dades i desplegament en producció:
-1.  **RBAC (Control d'Accés Basat en Rols):**
-    *   **Administrador:** Capacitat total (Ingesta de documents, Configuració d'IA, Gestió del Graf).
-    *   **Usuari (Professional):** Accés de només lectura (Xat Assistent, Visualització, Exportació).
-2.  **Autenticació Robusta:**
-    *   Hashing de contrasenyes amb **Bcrypt**.
-    *   Sessions *stateless* mitjançant **JWT (JSON Web Tokens)**.
-3.  **Protecció de Sessió:**
-    *   Cookies signades amb atributs `HttpOnly`, `Secure` i `SameSite=Strict` per prevenir atacs XSS i CSRF.
-4.  **Defensa Activa:**
-    *   **Rate Limiting:** Protecció contra atacs de força bruta i DoS.
-    *   **Secure Headers:** Capçaleres HTTP estrictes per prevenir Clickjacking i sniffing.
+#### 🖥️ Capacitats del Frontend (Interfície d'Usuari)
+Interfície intuïtiva, reactiva i segura, renderitzada amb **Tera**, **Bootstrap 5** i **Vis.js**.
 
-#### ✨ Capacitats Principals
-1.  **GraphRAG Híbrid:** Cerca vectorial + Navegació de grafs per a respostes contextuals profundes.
-2.  **Motor d'Inferència:** Dedueix relacions implícites (ex. Transitivitat entre participació i millora de salut).
-3.  **Interoperabilitat:** Exportació nativa a **JSON-LD** i **RDF/Turtle** (Web Semàntica).
-4.  **Rendiment:** Backend escrit en **Rust (Axum)**, garantint seguretat de memòria i velocitat.
+1.  **Panell de Visualització de Grafs:**
+    *   Renderitzat de nodes per colors segons ontologia (`Person`, `Condition`, `Intervention`).
+    *   Física de forces i navegació interactiva (Zoom, Pan, Selecció).
 
-#### 🚀 Desplegament (Docker & Render)
+2.  **Xat Assistent amb Evidència:**
+    *   **Sistema de Citacions `[1]`:** Referències interactives a les fonts originals.
+    *   **Navegació Bidireccional:** En clicar una cita, el graf s'enfoca automàticament en les entitats esmentades.
 
-El projecte està dockeritzat per a un desplegament senzill en plataformes com Render o Kubernetes.
+3.  **Fitxa Tècnica d'Entitat:**
+    *   Es desplega en seleccionar un node.
+    *   **Mètriques:** Mostra el grau de connexió i rellevància.
+    *   **Aïllament de Context:** Botó per veure només el subgraf contextual del node seleccionat.
 
-**Variables d'Entorn Requerides:**
+4.  **Gestió i Seguretat (UI per Rols):**
+    *   Interfície adaptativa segons si l'usuari és `User` o `Admin`.
+    *   **Ingesta (Admin):** Pujada d'arxius amb barra de progrés en temps real.
+    *   **Gestió d'Equip (Admin):** Alta i baixa de professionals.
+
+---
+
+## 🚀 Despliegue / Deployment
+
+**Variables de Entorno (.env):**
 ```env
-# Servidor
 PORT=3000
-RUST_LOG=info
-JWT_SECRET=super_secret_key_base64
-
-# Base de Dades (Neo4j AuraDB o Local)
+JWT_SECRET=super_secret_key
 NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
 NEO4J_USER=neo4j
-NEO4J_PASS=la_teva_contrasenya
-
-# Credencials Inicials
-ADMIN_USER=admin
-ADMIN_PASS=contrasenya_segura
-
-# Intel·ligència Artificial
+NEO4J_PASS=password
 AI_PROVIDER=openai
 AI_API_KEY=sk-...
-AI_MODEL=gpt-4o
 ```
 
-**Execució Local:**
+**Run / Ejecutar:**
 ```bash
 cargo run --release
 ```
 
 ---
 
-## 👨‍💻 Crèdits / Credits
+## 👨‍💻 Autor & Contacto / Author & Contact
 
 **Ángel A. Urbina**  
-*Architecture & Development*  
+*Lead Architect & Developer*  
 Projecte d'Innovació Tecnològica per al Tercer Sector Social.
+
+🌐 **Website / Portfolio:** [https://angelurbinacv.netlify.app/](https://angelurbinacv.netlify.app/)  
+📧 **GitHub:** [https://github.com/Angel-Urbina](https://github.com/Angel-Urbina)
 
 © 2025 LaMuralla Health Project. All Rights Reserved.
