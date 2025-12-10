@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Web Framework (Versiones compatibles con tower_governor)
+# Web Framework
 axum = { version = "0.7.5", features = ["macros", "multipart"] }
 axum-core = "0.4.3"
 tokio = { version = "1", features = ["full"] }
@@ -32,6 +32,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 validator = { version = "0.18.0", features = ["derive"] }
 
+# URL Encoding (Necesario para herramientas HTTP)
+url = "2.5" 
+
 # Database & AI
 neo4rs = "0.7.1"
 rig-core = "0.2.0" 
@@ -51,3 +54,8 @@ async-trait = "0.1"
 # Documentation
 utoipa = { version = "4.2.0", features = ["axum_extras", "uuid"] }
 utoipa-swagger-ui = { version = "6.0.0", features = ["axum"] }
+
+# Configuration & Files
+serde_yaml = "0.9"
+glob = "0.3"
+async-recursion = "1.0"

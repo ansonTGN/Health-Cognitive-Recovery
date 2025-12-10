@@ -1,0 +1,12 @@
+id: db_schema
+name: Database Schema Inspector
+description: Utiliza esta herramienta PRIMERO para entender la estructura de la base de datos (nodos y relaciones disponibles) antes de intentar escribir consultas Cypher.
+type: cypher
+input_schema:
+  type: object
+  properties:
+    action:
+      type: string
+      enum: ["get_schema"]
+      description: Acción fija para obtener el esquema.
+  required: [action]

@@ -2,14 +2,14 @@ use async_trait::async_trait;
 use neo4rs::{Graph, query};
 use uuid::Uuid;
 use std::sync::Arc;
-use std::collections::HashSet;
-// Eliminado: use futures::stream::StreamExt; para quitar el warning
+use std::collections::{HashSet, HashMap}; // Importamos HashMap
+use serde_json::Value; // Importamos Value
 use crate::domain::{
     ports::KGRepository, 
     models::{
         KnowledgeExtraction, GraphDataResponse, VisNode, VisEdge, 
         HybridContext, InferredRelation, GraphEntity, GraphRelation, 
-        ExportedGraph, User, UserRole 
+        ExportedGraph, User, UserRole, ChatHistoryMessage, MessageRole 
     }, 
     errors::AppError
 };
@@ -27,10 +27,7 @@ impl Neo4jRepo {
 #[async_trait]
 impl KGRepository for Neo4jRepo {
     
-    // =========================================================
-    // 1. GESTIÓN DE SEGURIDAD
-    // =========================================================
-    
+    // --- GESTIÓN DE SEGURIDAD ---
     async fn create_user(&self, user: User) -> Result<(), AppError> {
         let role_str = user.role.to_string();
         let q = query("CREATE (u:User {id: $id, username: $username, password: $password, role: $role})")
@@ -38,7 +35,6 @@ impl KGRepository for Neo4jRepo {
             .param("username", user.username)
             .param("password", user.password_hash)
             .param("role", role_str);
-        
         self.graph.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
@@ -46,16 +42,10 @@ impl KGRepository for Neo4jRepo {
     async fn get_user_by_username(&self, username: &str) -> Result<Option<User>, AppError> {
         let q = query("MATCH (u:User {username: $u}) RETURN u.id, u.username, u.password, u.role")
             .param("u", username);
-        
         let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
-
         if let Ok(Some(row)) = stream.next().await {
             let role_str: String = row.get("u.role").unwrap_or("User".to_string());
-            let role = match role_str.as_str() {
-                "Admin" => UserRole::Admin,
-                _ => UserRole::User,
-            };
-
+            let role = match role_str.as_str() { "Admin" => UserRole::Admin, _ => UserRole::User };
             return Ok(Some(User {
                 id: row.get("u.id").unwrap_or_default(),
                 username: row.get("u.username").unwrap_or_default(),
@@ -67,38 +57,19 @@ impl KGRepository for Neo4jRepo {
     }
 
     async fn ensure_admin_exists(&self, username: &str, hash: &str) -> Result<(), AppError> {
-        tracing::info!("🔐 Verificando/Actualizando credenciales para admin: '{}'", username);
-
-        let q = query("
-            MERGE (u:User {username: $username})
-            ON CREATE SET u.id = randomUUID(), u.role = 'Admin'
-            SET u.password = $hash, u.role = 'Admin'
-            RETURN u
-        ")
-        .param("username", username)
-        .param("hash", hash);
-
-        self.graph.run(q).await.map_err(|e| {
-            tracing::error!("Error actualizando admin: {:?}", e);
-            AppError::DatabaseError(e.to_string())
-        })?;
-
-        tracing::info!("✅ Usuario administrador '{}' sincronizado correctamente.", username);
+        let q = query("MERGE (u:User {username: $username}) ON CREATE SET u.id = randomUUID(), u.role = 'Admin' SET u.password = $hash, u.role = 'Admin' RETURN u")
+            .param("username", username).param("hash", hash);
+        self.graph.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
     async fn get_all_users(&self) -> Result<Vec<User>, AppError> {
         let q = query("MATCH (u:User) RETURN u.id, u.username, u.role ORDER BY u.role, u.username");
         let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
-        
         let mut users = Vec::new();
         while let Ok(Some(row)) = stream.next().await {
             let role_str: String = row.get("u.role").unwrap_or("User".to_string());
-            let role = match role_str.as_str() {
-                "Admin" => UserRole::Admin,
-                _ => UserRole::User,
-            };
-            
+            let role = match role_str.as_str() { "Admin" => UserRole::Admin, _ => UserRole::User };
             users.push(User {
                 id: row.get("u.id").unwrap_or_default(),
                 username: row.get("u.username").unwrap_or_default(),
@@ -115,88 +86,58 @@ impl KGRepository for Neo4jRepo {
         Ok(())
     }
 
-    // =========================================================
-    // 2. CONFIGURACIÓN E ÍNDICES
-    // =========================================================
-
+    // --- CONFIGURACIÓN E ÍNDICES ---
     async fn create_indexes(&self, dim: usize) -> Result<(), AppError> {
-        let q = format!(
-            "CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS FOR (c:DocumentChunk) ON (c.embedding) \
-             OPTIONS {{indexConfig: {{ `vector.dimensions`: {}, `vector.similarity_function`: 'cosine' }} }}", 
-            dim
-        );
+        let q = format!("CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS FOR (c:DocumentChunk) ON (c.embedding) OPTIONS {{indexConfig: {{ `vector.dimensions`: {}, `vector.similarity_function`: 'cosine' }} }}", dim);
         self.graph.run(query(&q)).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
-        
-        self.graph.run(query("CREATE CONSTRAINT entity_name IF NOT EXISTS FOR (e:Entity) REQUIRE e.name IS UNIQUE")).await
-            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-            
-        self.graph.run(query("CREATE CONSTRAINT user_unique IF NOT EXISTS FOR (u:User) REQUIRE u.username IS UNIQUE")).await
-             .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-             
+        self.graph.run(query("CREATE CONSTRAINT entity_name IF NOT EXISTS FOR (e:Entity) REQUIRE e.name IS UNIQUE")).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        self.graph.run(query("CREATE CONSTRAINT user_unique IF NOT EXISTS FOR (u:User) REQUIRE u.username IS UNIQUE")).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
     async fn reset_database(&self) -> Result<(), AppError> {
-        self.graph.run(query("MATCH (n) DETACH DELETE n")).await
-            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        self.graph.run(query("MATCH (n) DETACH DELETE n")).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
-    // =========================================================
-    // 3. INGESTA Y ESCRITURA
-    // =========================================================
-
+    // --- INGESTA Y ESCRITURA ---
     async fn save_chunk(&self, id: Uuid, content: &str, embedding: Vec<f32>) -> Result<(), AppError> {
-        let q = query("CREATE (c:DocumentChunk {id: $id, content: $content, embedding: $embedding})")
-            .param("id", id.to_string())
-            .param("content", content)
-            .param("embedding", embedding);
+        let q = query("CREATE (c:DocumentChunk {id: $id, content: $content, embedding: $embedding})").param("id", id.to_string()).param("content", content).param("embedding", embedding);
         self.graph.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
     async fn save_graph(&self, chunk_id: Uuid, data: KnowledgeExtraction) -> Result<(), AppError> {
         let mut txn = self.graph.start_txn().await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
-        
         for entity in &data.entities {
-            let q = query("MERGE (e:Entity {name: $name}) ON CREATE SET e.category = $category")
-                .param("name", entity.name.as_str())
-                .param("category", entity.category.as_str());
+            let q = query("MERGE (e:Entity {name: $name}) ON CREATE SET e.category = $category").param("name", entity.name.as_str()).param("category", entity.category.as_str());
             txn.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         }
-        
         for rel in data.relations {
             let cypher = format!("MATCH (a:Entity {{name: $source}}), (b:Entity {{name: $target}}) MERGE (a)-[:{}]->(b)", rel.relation_type.replace(" ", "_").to_uppercase());
             let q = query(&cypher).param("source", rel.source.as_str()).param("target", rel.target.as_str());
             txn.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         }
-        
         let q_link = query("MATCH (c:DocumentChunk {id: $cid}), (e:Entity) WHERE e.name IN $names MERGE (c)-[:MENTIONS]->(e)");
         let names: Vec<String> = data.entities.into_iter().map(|e| e.name).collect();
         txn.run(q_link.param("cid", chunk_id.to_string()).param("names", names)).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
-        
         txn.commit().await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
-    // =========================================================
-    // 4. LECTURA Y VISUALIZACIÓN
-    // =========================================================
-
+    // --- LECTURA Y VISUALIZACIÓN ---
     async fn get_full_graph(&self) -> Result<GraphDataResponse, AppError> {
         let q = query("MATCH (n:Entity)-[r]->(m:Entity) RETURN n.name, n.category, type(r), m.name, m.category LIMIT 1000");
         let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
         let mut nodes_vec = Vec::new();
         let mut edges_vec = Vec::new();
         let mut unique_nodes = HashSet::new(); 
-
         while let Ok(Some(row)) = stream.next().await {
             let n_name: String = row.get("n.name").unwrap_or_else(|_| "Unknown".to_string());
             let n_cat: String = row.get("n.category").unwrap_or_else(|_| "Concept".to_string());
             let r_type: String = row.get("type(r)").unwrap_or_else(|_| "RELATED".to_string());
             let m_name: String = row.get("m.name").unwrap_or_else(|_| "Unknown".to_string());
             let m_cat: String = row.get("m.category").unwrap_or_else(|_| "Concept".to_string());
-
             if unique_nodes.insert(n_name.clone()) { nodes_vec.push(VisNode { id: n_name.clone(), label: n_name.clone(), group: n_cat }); }
             if unique_nodes.insert(m_name.clone()) { nodes_vec.push(VisNode { id: m_name.clone(), label: m_name.clone(), group: m_cat }); }
             edges_vec.push(VisEdge { from: n_name, to: m_name, label: r_type });
@@ -226,7 +167,6 @@ impl KGRepository for Neo4jRepo {
         let mut edges_vec = Vec::new();
         let mut unique_nodes = HashSet::new();
         let mut relations_found = false;
-
         while let Ok(Some(row)) = stream.next().await {
             relations_found = true;
             let c_name: String = row.get("center.name").unwrap_or_default();
@@ -235,18 +175,11 @@ impl KGRepository for Neo4jRepo {
             let is_source: bool = row.get("is_source").unwrap_or(true);
             let n_name: String = row.get("neighbor.name").unwrap_or_default();
             let n_cat: String = row.get("neighbor.category").unwrap_or_else(|_| "Concept".to_string());
-
-            if unique_nodes.insert(c_name.clone()) { 
-                nodes_vec.push(VisNode { id: c_name.clone(), label: c_name.clone(), group: c_cat }); 
-            }
-            if unique_nodes.insert(n_name.clone()) { 
-                nodes_vec.push(VisNode { id: n_name.clone(), label: n_name.clone(), group: n_cat }); 
-            }
-            
+            if unique_nodes.insert(c_name.clone()) { nodes_vec.push(VisNode { id: c_name.clone(), label: c_name.clone(), group: c_cat }); }
+            if unique_nodes.insert(n_name.clone()) { nodes_vec.push(VisNode { id: n_name.clone(), label: n_name.clone(), group: n_cat }); }
             let (from, to) = if is_source { (c_name, n_name) } else { (n_name, c_name) };
             edges_vec.push(VisEdge { from, to, label: rel_type });
         }
-        
         if !relations_found {
              let q_fallback = query("MATCH (center:Entity {name: $name}) RETURN center.name, center.category").param("name", concept_name);
              let mut stream_fallback = self.graph.execute(q_fallback).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -261,10 +194,7 @@ impl KGRepository for Neo4jRepo {
         Ok(GraphDataResponse { nodes: nodes_vec, edges: edges_vec })
     }
 
-    // =========================================================
-    // 5. RAZONAMIENTO Y EXPORTACIÓN
-    // =========================================================
-
+    // --- RAZONAMIENTO Y EXPORTACIÓN ---
     async fn get_graph_context_for_reasoning(&self, limit: usize) -> Result<String, AppError> {
         let q = query("MATCH (n:Entity)-[r]->(m:Entity) WITH n, r, m, count(n) as degree ORDER BY degree DESC LIMIT $limit RETURN n.name, type(r), m.name").param("limit", limit as i64);
         let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -303,5 +233,122 @@ impl KGRepository for Neo4jRepo {
             edges.push(GraphRelation { source: row.get("n.name").unwrap_or_default(), target: row.get("m.name").unwrap_or_default(), relation_type: row.get("type(r)").unwrap_or_default() });
         }
         Ok(ExportedGraph { generated_at: chrono::Utc::now().to_rfc3339(), domain: "Mental Health".to_string(), nodes, edges })
+    }
+
+    // --- MEMORIA CONVERSACIONAL ---
+    async fn get_conversation_history(&self, username: &str, agent_id: &str, limit: usize) -> Result<Vec<ChatHistoryMessage>, AppError> {
+        let q = query("
+            MATCH (u:User {username: $username})-[:HAS_CONVERSATION]->(c:Conversation {agent_id: $agent_id})
+            MATCH (c)-[:HAS_MESSAGE]->(m:Message)
+            RETURN m.role, m.content, m.timestamp
+            ORDER BY m.timestamp DESC
+            LIMIT $limit
+        ")
+        .param("username", username)
+        .param("agent_id", agent_id)
+        .param("limit", limit as i64);
+
+        let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        let mut history = Vec::new();
+
+        while let Ok(Some(row)) = stream.next().await {
+            let role_str: String = row.get("m.role").unwrap_or("user".to_string());
+            let role = match role_str.as_str() {
+                "assistant" => MessageRole::Assistant,
+                "system" => MessageRole::System,
+                _ => MessageRole::User,
+            };
+
+            history.push(ChatHistoryMessage {
+                role,
+                content: row.get("m.content").unwrap_or_default(),
+                timestamp: row.get("m.timestamp").unwrap_or_default(),
+            });
+        }
+        
+        history.reverse();
+        Ok(history)
+    }
+
+    async fn save_chat_message(&self, username: &str, agent_id: &str, role: MessageRole, content: &str) -> Result<(), AppError> {
+        let timestamp = chrono::Utc::now().to_rfc3339();
+        let q = query("
+            MATCH (u:User {username: $username})
+            MERGE (u)-[:HAS_CONVERSATION]->(c:Conversation {agent_id: $agent_id})
+            CREATE (m:Message {
+                id: randomUUID(),
+                role: $role,
+                content: $content,
+                timestamp: $timestamp
+            })
+            MERGE (c)-[:HAS_MESSAGE]->(m)
+        ")
+        .param("username", username)
+        .param("agent_id", agent_id)
+        .param("role", role.to_string())
+        .param("content", content)
+        .param("timestamp", timestamp);
+
+        self.graph.run(q).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+
+    // --- NUEVAS CAPACIDADES NEO4J (Schema & Dynamic Query) ---
+    // FIX: Usamos to::<HashMap> para leer filas genéricas sin conocer las claves de antemano.
+    
+    async fn get_graph_schema(&self) -> Result<String, AppError> {
+        // Labels
+        let q_labels = query("CALL db.labels()");
+        let mut stream_labels = self.graph.execute(q_labels).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        let mut labels = Vec::new();
+        while let Ok(Some(row)) = stream_labels.next().await {
+            if let Ok(label) = row.get::<String>("label") { labels.push(label); }
+        }
+
+        // Relationships
+        let q_rels = query("CALL db.relationshipTypes()");
+        let mut stream_rels = self.graph.execute(q_rels).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        let mut rels = Vec::new();
+        while let Ok(Some(row)) = stream_rels.next().await {
+            if let Ok(rel) = row.get::<String>("relationshipType") { rels.push(rel); }
+        }
+
+        let schema = format!(
+            "Graph Schema:\n- Node Labels: [{}]\n- Relationship Types: [{}]\n\nSample Structure: (Person)-[PARTICIPATES_IN]->(Intervention), (Person)-[HAS_CONDITION]->(Condition)",
+            labels.join(", "), rels.join(", ")
+        );
+        Ok(schema)
+    }
+
+    async fn execute_cypher_query(&self, cypher: &str) -> Result<String, AppError> {
+        // SEGURIDAD BÁSICA (Read-Only)
+        let upper = cypher.to_uppercase();
+        if upper.contains("CREATE") || upper.contains("DELETE") || upper.contains("SET") || upper.contains("MERGE") {
+            return Err(AppError::ValidationError("Security Violation: Read-Only tool.".to_string()));
+        }
+
+        let q = query(cypher);
+        let mut stream = self.graph.execute(q).await.map_err(|e| AppError::DatabaseError(format!("Syntax Error: {}", e)))?;
+        
+        let mut results = Vec::new();
+        
+        while let Ok(Some(row)) = stream.next().await {
+            // FIX: Convertimos la fila entera a un HashMap genérico para no depender de nombres de columnas.
+            if let Ok(map) = row.to::<HashMap<String, Value>>() {
+                let json_str = serde_json::to_string(&map).unwrap_or_default();
+                results.push(json_str);
+            }
+        }
+
+        if results.is_empty() {
+            Ok("Query executed successfully but returned no results.".to_string())
+        } else {
+            let output = results.join("\n");
+            if output.len() > 4000 {
+                Ok(output[..4000].to_string() + "... (truncated)")
+            } else {
+                Ok(output)
+            }
+        }
     }
 }

@@ -1,35 +1,70 @@
-<div class="tab-pane fade h-100 p-4" id="content-ingest" role="tabpanel" aria-labelledby="tab-btn-ingest">
-    <h5 class="fw-bold text-dark mb-4">Administración de Datos</h5>
-
-    <!-- INFO BD -->
-    <div class="alert alert-info border-0 d-flex align-items-center gap-3 mb-4">
-        <i class="fa-solid fa-database fa-lg"></i>
-        <div>
-            <div class="fw-bold text-xs text-uppercase">Modelo Vectorial</div>
-            <div>{{ config.model_name }} ({{ config.embedding_dim }} dim)</div>
-        </div>
+<div class="tab-pane fade h-100 p-0" id="content-ingest" role="tabpanel" aria-labelledby="tab-btn-ingest">
+    
+    <!-- HEADER -->
+    <div class="p-4 border-bottom bg-light">
+        <h5 class="fw-bold text-dark mb-0">Centro de Datos y Capacidades</h5>
+        <small class="text-muted">Administración de conocimiento y configuración de agentes.</small>
     </div>
 
-    <!-- FORMULARIO DE INGESTA -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white border-bottom">
-            <h6 class="mb-0 fw-bold text-primary"><i class="fa-solid fa-cloud-upload-alt me-2"></i>Nueva Evidencia</h6>
+    <div class="row g-0 h-100" style="overflow-y: auto; padding-bottom: 100px;">
+        
+        <!-- COLUMNA IZQUIERDA: INGESTA -->
+        <div class="col-lg-6 p-4 border-end">
+            <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-cloud-upload-alt me-2"></i>Ingesta de Conocimiento</h6>
+            
+            <!-- INFO BD -->
+            <div class="alert alert-info border-0 d-flex align-items-center gap-3 mb-4 py-2">
+                <i class="fa-solid fa-database fa-lg"></i>
+                <div>
+                    <div class="fw-bold text-xs text-uppercase">Modelo Vectorial</div>
+                    <div class="small">{{ config.model_name }} ({{ config.embedding_dim }} dim)</div>
+                </div>
+            </div>
+
+            <!-- FORMULARIO -->
+            <div class="card shadow-sm border-0 mb-4 bg-white">
+                <div class="card-body">
+                    <label class="small fw-bold text-muted mb-2">Texto Directo</label>
+                    <textarea id="ingestContent" class="form-control mb-3 bg-light" rows="4" placeholder="Pegar notas clínicas, informes..."></textarea>
+                    
+                    <label class="small fw-bold text-muted mb-2">O subir archivo (PDF, DOCX, TXT)</label>
+                    <input type="file" id="ingestFile" class="form-control mb-3">
+                    
+                    <button onclick="startIngestion()" class="btn btn-dark w-100 fw-bold">
+                        <i class="fa-solid fa-play me-2"></i>Procesar Información
+                    </button>
+                </div>
+            </div>
+
+            <!-- LOGS -->
+            <div id="progressArea" class="d-none bg-dark text-white p-3 rounded mb-4 font-mono text-xs shadow-inner" style="max-height: 150px; overflow-y: auto;">
+                <div class="text-success mb-2">Iniciando pipeline...</div>
+            </div>
+
+            <button onclick="runReasoning()" class="btn btn-outline-warning text-dark w-100 btn-sm">
+                <i class="fa-solid fa-brain me-2"></i>Ejecutar Inferencia (Detectar relaciones ocultas)
+            </button>
+            <div id="reasoningResult" class="text-center mt-2 fw-bold text-success small"></div>
         </div>
-        <div class="card-body">
-            <textarea id="ingestContent" class="form-control mb-3 bg-light" rows="5" placeholder="Pega aquí el texto clínico, notas o informes..."></textarea>
-            <input type="file" id="ingestFile" class="form-control mb-3">
-            <button onclick="startIngestion()" class="btn btn-dark w-100 fw-bold">Procesar Información</button>
+
+        <!-- COLUMNA DERECHA: AGENTES Y HERRAMIENTAS -->
+        <div class="col-lg-6 p-4 bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-primary mb-0"><i class="fa-solid fa-robot me-2"></i>Arquitectura Cognitiva</h6>
+                <button class="btn btn-sm btn-light border" onclick="loadAgentsAndTools()"><i class="fa-solid fa-sync"></i></button>
+            </div>
+
+            <!-- LISTA DE AGENTES -->
+            <label class="text-xs fw-bold text-muted text-uppercase mb-2">Agentes Activos</label>
+            <div id="agents-list" class="d-flex flex-column gap-2 mb-4">
+                <div class="text-center text-muted small py-3"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando...</div>
+            </div>
+
+            <!-- LISTA DE HERRAMIENTAS -->
+            <label class="text-xs fw-bold text-muted text-uppercase mb-2">Herramientas Disponibles</label>
+            <div id="tools-list" class="d-flex flex-column gap-2">
+                <!-- Se rellena con JS -->
+            </div>
         </div>
     </div>
-
-    <!-- LOGS -->
-    <div id="progressArea" class="d-none bg-dark text-white p-3 rounded mb-4 font-mono text-xs" style="max-height: 150px; overflow-y: auto;">
-        <div class="text-success mb-2">Iniciando pipeline...</div>
-    </div>
-
-    <!-- MANTENIMIENTO -->
-    <button onclick="runReasoning()" class="btn btn-outline-warning text-dark w-100">
-        <i class="fa-solid fa-brain me-2"></i>Ejecutar Motor de Inferencia
-    </button>
-    <div id="reasoningResult" class="text-center mt-2 fw-bold text-success"></div>
 </div>

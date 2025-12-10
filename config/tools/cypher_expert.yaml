@@ -1,0 +1,11 @@
+id: cypher_expert
+name: Cypher Query Executor
+description: Ejecuta consultas Cypher de lectura en la base de datos Neo4j. Úsalo para contar pacientes, encontrar patrones complejos o filtrar por múltiples condiciones. NO INVENTES RELACIONES, usa 'db_schema' primero.
+type: cypher
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: La consulta Cypher válida (ej. "MATCH (p:Person)-[:HAS_CONDITION]->(c) RETURN count(p)").
+  required: [query]

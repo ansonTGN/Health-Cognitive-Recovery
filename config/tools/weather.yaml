@@ -1,0 +1,17 @@
+id: weather
+name: Servicio Meteorológico
+description: Obtiene el pronóstico del tiempo actual dado una latitud y longitud.
+type: http
+method: GET
+# Pide lat/lon y devuelve temperatura, código de clima, viento, etc.
+url: "https://api.open-meteo.com/v1/forecast?latitude={{input.lat}}&longitude={{input.lon}}&current_weather=true"
+input_schema:
+  type: object
+  properties:
+    lat:
+      type: string
+      description: Latitud geográfica (obtenida del geocoding).
+    lon:
+      type: string
+      description: Longitud geográfica (obtenida del geocoding).
+  required: [lat, lon]

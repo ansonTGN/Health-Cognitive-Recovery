@@ -1,0 +1,14 @@
+id: geocoding
+name: Servicio de Geolocalización
+description: Convierte un nombre de ciudad en coordenadas geográficas (latitud y longitud). Úsala SIEMPRE antes de consultar el clima.
+type: http
+method: GET
+# La API devuelve un JSON con 'latitude' y 'longitude'
+url: "https://geocoding-api.open-meteo.com/v1/search?name={{input.city}}&count=1&language=es&format=json"
+input_schema:
+  type: object
+  properties:
+    city:
+      type: string
+      description: El nombre de la ciudad o localidad (ej. "Barcelona", "Buenos Aires").
+  required: [city]

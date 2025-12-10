@@ -1,14 +1,34 @@
 <div class="tab-pane fade show active h-100" id="content-chat" role="tabpanel" aria-labelledby="tab-btn-chat">
     <div class="d-flex flex-column h-100">
-        <div id="chatArea" class="chat-container">
-            <!-- Mensaje Bienvenida -->
+        
+        <!-- CABECERA DEL CHAT CON SELECTOR -->
+        <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center shadow-sm" style="z-index: 5;">
+            <div class="d-flex align-items-center gap-2">
+                <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center" style="width:32px; height:32px">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <h6 class="mb-0 fw-bold text-dark">Asistente</h6>
+            </div>
+            
+            <!-- SELECTOR DE MODO -->
+            <div class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-robot"></i></span>
+                <select id="chatModeSelector" class="form-select border-start-0 fw-bold text-primary" onchange="updateChatMode()">
+                    <option value="rag_standard" selected>📚 Base de Datos (RAG)</option>
+                    <!-- Los agentes se cargarán aquí dinámicamente -->
+                </select>
+            </div>
+        </div>
+
+        <!-- ÁREA DE MENSAJES -->
+        <div id="chatArea" class="chat-container flex-grow-1">
             <div class="msg-bubble msg-ai">
-                <strong><i class="fa-solid fa-robot me-2"></i>Asistente Clínico</strong><br>
-                Hola <strong>{{ username }}</strong>. Estoy listo para analizar el grafo de conocimiento.<br>
-                <small class="text-muted">Prueba: "¿Qué síntomas tiene Juan?" o "¿Qué intervenciones funcionan mejor?"</small>
+                <strong><i class="fa-solid fa-info-circle me-2"></i>Sistema</strong><br>
+                Selecciona arriba si deseas consultar tus documentos (Base de Datos) o hablar con un Agente especializado (Herramientas).
             </div>
         </div>
         
+        <!-- INPUT -->
         <div class="p-3 border-top bg-white">
             <div class="input-group">
                 <textarea id="userPrompt" class="form-control bg-light" rows="2" placeholder="Escribe tu consulta..." style="resize:none" onkeypress="handleEnter(event)"></textarea>

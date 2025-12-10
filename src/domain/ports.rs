@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use crate::domain::models::{
     AIConfig, KnowledgeExtraction, GraphDataResponse, HybridContext, 
-    InferredRelation, InferenceResult, ExportedGraph, User 
+    InferredRelation, InferenceResult, ExportedGraph, User,
+    ChatHistoryMessage, MessageRole // Importante: importar los nuevos modelos
 };
 use crate::domain::errors::AppError;
 use uuid::Uuid;
@@ -28,10 +29,18 @@ pub trait KGRepository: Send + Sync {
     async fn create_user(&self, user: User) -> Result<(), AppError>;
     async fn get_user_by_username(&self, username: &str) -> Result<Option<User>, AppError>;
     async fn ensure_admin_exists(&self, username: &str, hash: &str) -> Result<(), AppError>;
-    
-    // 👇 NUEVOS MÉTODOS PARA GESTIÓN DE USUARIOS
     async fn get_all_users(&self) -> Result<Vec<User>, AppError>;
     async fn delete_user(&self, username: &str) -> Result<(), AppError>;
+
+    // --- Capacidades de Memoria (NUEVO) ---
+    async fn get_conversation_history(&self, username: &str, agent_id: &str, limit: usize) -> Result<Vec<ChatHistoryMessage>, AppError>;
+    async fn save_chat_message(&self, username: &str, agent_id: &str, role: MessageRole, content: &str) -> Result<(), AppError>;
+    
+    // 1. Introspección: Devuelve un resumen del esquema (Nodos, Relaciones y Propiedades)
+    async fn get_graph_schema(&self) -> Result<String, AppError>;
+
+    // 2. Ejecución Dinámica: Ejecuta una query Cypher generada por la IA (Read-Only recomendado)
+    async fn execute_cypher_query(&self, query: &str) -> Result<String, AppError>;
 }
 
 #[async_trait]

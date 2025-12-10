@@ -1,0 +1,11 @@
+id: graph_explorer
+name: Graph Explorer
+description: Busca información sobre pacientes, condiciones e intervenciones en la base de datos de grafos interna.
+type: cypher
+input_schema:
+  type: object
+  properties:
+    concept_name:
+      type: string
+      description: El nombre exacto de la entidad a buscar (ej. "Juan", "Ansiedad").
+  required: [concept_name]

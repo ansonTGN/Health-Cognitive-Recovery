@@ -1,70 +1,139 @@
 <script>
-    // Colores y Configuración
+    // =========================================================
+    // 0. CONFIGURACIÓN GLOBAL
+    // =========================================================
     const COLORS = { Person:'#1565c0', Condition:'#c62828', Intervention:'#2e7d32', Outcome:'#6a1b9a', CommunityResource:'#00838f', Concept:'#455a64', Unknown:'#9e9e9e' };
     const ICONS = { Person:'\uf007', Condition:'\uf4fd', Intervention:'\uf0f0', Outcome:'\uf201', CommunityResource:'\uf4c4', Concept:'\uf0eb', Unknown:'\uf128' };
+    
     let network, allNodesData, allEdgesData, currentFocusNode = null;
     let lastChatSources = [];
-    const currentUser = "{{ username }}";
+    // 'username' se inyecta desde Tera en el renderizado del HTML
+    const currentUser = "{{ username }}"; 
 
+    // INICIALIZACIÓN AL CARGAR LA PÁGINA
     document.addEventListener('DOMContentLoaded', () => { 
-        loadGraph();
-        // Si el elemento userList existe (es admin), cargamos usuarios
+        // 1. Cargar Grafo si existe el contenedor
+        if(document.getElementById('network-container')) loadGraph();
+        
+        // 2. Cargar Agentes en el Selector de Chat si existe
+        if(document.getElementById('chatModeSelector')) loadChatAgents();
+
+        // 3. Cargar Lista de Usuarios (Solo Admin)
         if(document.getElementById('userList')) loadUsers();
+
+        // 4. Cargar Agentes y Herramientas (Pestaña Datos)
+        if(document.getElementById('agents-list')) loadAgentsAndTools();
     });
 
-    // ---------------------------------------------------------
-    // 1. LOGICA DE GRAFO Y FICHA
-    // ---------------------------------------------------------
+    // =========================================================
+    // 1. LÓGICA DE GRAFO (VISUALIZACIÓN)
+    // =========================================================
     async function loadGraph() {
-        document.getElementById('loading').style.display='flex';
+        const loader = document.getElementById('loading');
+        const container = document.getElementById('network-container');
+        
+        if(loader) loader.style.display='flex';
+        console.log("🚀 Iniciando carga del grafo...");
+
         try {
             const res = await fetch('/api/graph');
-            if (res.status === 401) return window.location.href = "/";
-            const data = await res.json();
             
+            if (res.status === 401) return window.location.href = "/";
+            if (!res.ok) throw new Error(`Error Backend (${res.status})`);
+
+            const data = await res.json();
+
+            // Si el grafo está vacío
+            if (data.nodes.length === 0) {
+                if(container) container.innerHTML = `
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                        <i class="fa-solid fa-circle-nodes fa-3x mb-3 opacity-25"></i>
+                        <h5>El grafo está vacío</h5>
+                        <p class="small">Sube documentos en la pestaña "Datos".</p>
+                    </div>`;
+                return;
+            }
+            
+            // Mapeo de Nodos para Vis.js
             const nodes = data.nodes.map(n => ({
-                id: n.id, label: n.label.length>15?n.label.substring(0,14)+'..':n.label, fullLabel: n.label, group: n.group,
-                shape:'icon', icon:{ face:'"Font Awesome 6 Free"', code:ICONS[n.group]||'\uf128', weight:'900', size:35, color:COLORS[n.group]||'#999' },
-                font:{face:'Manrope', size:12, color:'#333', background:'rgba(255,255,255,0.9)'}
+                id: n.id, 
+                label: n.label.length > 15 ? n.label.substring(0,14)+'..' : n.label, 
+                fullLabel: n.label, 
+                group: n.group,
+                shape: 'icon', 
+                icon: { 
+                    face: '"Font Awesome 6 Free"', 
+                    code: ICONS[n.group] || '\uf128', 
+                    weight: '900', 
+                    size: 35, 
+                    color: COLORS[n.group] || '#999' 
+                },
+                font: { face: 'Manrope', size: 12, color: '#333', background: 'rgba(255,255,255,0.9)' }
             }));
-            const edges = data.edges.map(e => ({ from:e.from, to:e.to, label: e.label.replace(/_/g, ' ').toLowerCase(), color:{color:'#cfd8dc'}, arrows:'to', font: {align:'middle', size:10, color:'#aaa'} }));
+
+            // Mapeo de Relaciones
+            const edges = data.edges.map(e => ({ 
+                from: e.from, 
+                to: e.to, 
+                label: e.label.replace(/_/g, ' ').toLowerCase(), 
+                color: { color: '#cfd8dc' }, 
+                arrows: 'to', 
+                font: { align: 'middle', size: 10, color: '#aaa' } 
+            }));
             
             allNodesData = new vis.DataSet(nodes); 
             allEdgesData = new vis.DataSet(edges);
-            network = new vis.Network(document.getElementById('network-container'), { nodes:allNodesData, edges:allEdgesData }, {
-                nodes: { borderWidth: 0, shadow:true },
-                physics: { stabilization: false, barnesHut: { gravitationalConstant: -3000, springConstant: 0.04 } }
+
+            if(network) network.destroy();
+
+            network = new vis.Network(container, { nodes: allNodesData, edges: allEdgesData }, {
+                nodes: { borderWidth: 0, shadow: true },
+                physics: { 
+                    stabilization: true,
+                    barnesHut: { gravitationalConstant: -3000, springConstant: 0.04 } 
+                },
+                interaction: { hover: true }
             });
+
+            // Evento Click en Nodo
             network.on("click", p => { if(p.nodes.length) showDetails(p.nodes[0]); });
 
-        } catch(e) { console.error(e); } finally { document.getElementById('loading').style.display='none'; }
+        } catch(e) { 
+            console.error("🔥 Error cargando grafo:", e);
+            if(container) container.innerHTML = `<div class="alert alert-danger m-4">Error visualizando grafo: ${e.message}</div>`;
+        } finally { 
+            if(loader) loader.style.display='none'; 
+        }
     }
 
+    // --- Funciones Auxiliares del Panel Lateral ---
     function showDetails(id) {
         currentFocusNode = id;
         const n = allNodesData.get(id);
         if(!n) return;
 
-        // 1. Activar pestaña visualmente (Bootstrap 5)
+        // Activar pestaña si estamos en móvil u otra vista
         const triggerEl = document.querySelector('#tab-btn-details');
-        const tabInstance = bootstrap.Tab.getOrCreateInstance(triggerEl);
-        tabInstance.show();
+        if(triggerEl) {
+            const tabInstance = bootstrap.Tab.getOrCreateInstance(triggerEl);
+            tabInstance.show();
+        }
 
-        // 2. Mostrar contenido
-        document.getElementById('details-empty').classList.add('d-none');
-        document.getElementById('details-content').classList.remove('d-none');
+        const emptyDiv = document.getElementById('details-empty');
+        const contentDiv = document.getElementById('details-content');
+        if(emptyDiv) emptyDiv.classList.add('d-none');
+        if(contentDiv) contentDiv.classList.remove('d-none');
         
-        // 3. Rellenar datos
         document.getElementById('detail-title').innerText = n.fullLabel || n.label;
         document.getElementById('detail-id-short').innerText = id.substring(0,8);
         const badge = document.getElementById('detail-badge');
-        badge.innerText = n.group; badge.style.backgroundColor = COLORS[n.group] || '#999';
+        badge.innerText = n.group; 
+        badge.style.backgroundColor = COLORS[n.group] || '#999';
 
         const rels = allEdgesData.get({ filter: e => e.from === id || e.to === id });
         document.getElementById('detail-degree').innerText = rels.length;
         document.getElementById('detail-pagerank').innerText = rels.length > 5 ? 'ALTA' : 'MEDIA';
 
-        // 4. Lista de relaciones
         const list = document.getElementById('detail-connections-list');
         list.innerHTML = rels.length ? rels.map(e => {
             const isOut = e.from === id;
@@ -76,56 +145,123 @@
             </div>`;
         }).join('') : '<div class="text-muted text-center p-2">Sin conexiones</div>';
         
-        // Movil
+        // Auto-abrir sidebar en móvil
         if(window.innerWidth < 992) document.body.classList.add('sidebar-open');
     }
 
     function clearDetails() {
         document.getElementById('details-content').classList.add('d-none');
         document.getElementById('details-empty').classList.remove('d-none');
-        currentFocusNode = null; network.unselectAll();
+        currentFocusNode = null; 
+        if(network) network.unselectAll();
     }
 
-    function focusOnNode(id) { network.selectNodes([id]); network.focus(id, {scale: 1.2, animation: true}); showDetails(id); }
-    function focusOnNodeContext() { if(!currentFocusNode) return; const all = [currentFocusNode, ...network.getConnectedNodes(currentFocusNode)]; network.fit({ nodes: all, animation: true }); }
+    function focusOnNode(id) { 
+        if(!network) return;
+        network.selectNodes([id]); 
+        network.focus(id, {scale: 1.2, animation: true}); 
+        showDetails(id); 
+    }
 
-    // ---------------------------------------------------------
-    // 2. CHAT & FUENTES
-    // ---------------------------------------------------------
+    function focusOnNodeContext() { 
+        if(!currentFocusNode || !network) return; 
+        const all = [currentFocusNode, ...network.getConnectedNodes(currentFocusNode)]; 
+        network.fit({ nodes: all, animation: true }); 
+    }
+
+    // =========================================================
+    // 2. CHAT & AGENTES (LÓGICA HÍBRIDA)
+    // =========================================================
+    
+    // Carga los agentes disponibles en el <select> del chat
+    async function loadChatAgents() {
+        const selector = document.getElementById('chatModeSelector');
+        if (!selector) return;
+
+        try {
+            const res = await fetch('/api/agents');
+            if (res.ok) {
+                const agents = await res.json();
+                // Limpiar opciones previas excepto la primera (RAG)
+                while (selector.options.length > 1) { selector.remove(1); }
+                
+                agents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent.id;
+                    option.text = `🤖 ${agent.name}`;
+                    selector.appendChild(option);
+                });
+            }
+        } catch (e) { console.error("Error cargando agentes en chat", e); }
+    }
+
+    function updateChatMode() {
+        const selector = document.getElementById('chatModeSelector');
+        const text = selector.options[selector.selectedIndex].text;
+        const chatArea = document.getElementById('chatArea');
+        chatArea.innerHTML += `<div class="text-center text-muted text-xs my-3 border-top border-bottom py-1 bg-light">Modo cambiado a: <strong>${text}</strong></div>`;
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
     async function sendChat() {
         const input = document.getElementById('userPrompt');
         const txt = input.value.trim(); if(!txt) return;
+        
+        // Obtener modo (Base de Datos vs Agente)
+        const selector = document.getElementById('chatModeSelector');
+        const selectedMode = selector ? selector.value : 'rag_standard';
+        
         const chatArea = document.getElementById('chatArea'); 
         
-        // User Msg
+        // 1. Mostrar Mensaje Usuario
         chatArea.innerHTML += `<div class="msg-bubble msg-user animate__animated animate__fadeInUp">${txt}</div>`;
         input.value = ''; chatArea.scrollTop = chatArea.scrollHeight;
 
-        // Loader
+        // 2. Loader
         const loaderId = 'loader-'+Date.now();
         chatArea.innerHTML += `<div id="${loaderId}" class="msg-bubble msg-ai text-muted"><i class="fa-solid fa-circle-notch fa-spin me-2"></i> Procesando...</div>`;
 
         try {
-            const res = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:txt})});
-            const data = await res.json();
+            let data;
+            
+            // --- CASO A: RAG STANDARD (Base de Datos) ---
+            if (selectedMode === 'rag_standard') {
+                const res = await fetch('/api/chat', {
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body:JSON.stringify({message:txt})
+                });
+                if (!res.ok) throw new Error("Error en Backend RAG");
+                data = await res.json();
+                lastChatSources = data.sources || []; // Guardar fuentes para visualización
+            } 
+            // --- CASO B: AGENTE (Con Herramientas) ---
+            else {
+                const res = await fetch('/api/agents/chat', {
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body:JSON.stringify({
+                        agent_id: selectedMode,
+                        message: txt
+                    })
+                });
+                if (!res.ok) throw new Error("Error en Agente");
+                data = await res.json();
+                lastChatSources = []; // Los agentes no devuelven estructura 'sources' estándar
+            }
+
             document.getElementById(loaderId).remove();
 
-            if (!res.ok) throw new Error(data.error || "Error en respuesta");
-
-            lastChatSources = data.sources || [];
-            
-            // Renderizar Markdown
+            // 3. Renderizar Markdown
             let htmlContent = marked.parse(data.response);
             
-            // Reemplazar [1] por badges
-            htmlContent = htmlContent.replace(/\[(\d+)\]/g, (match, idx) => {
-                return `<span class="badge bg-primary citation-badge" onclick="visualizeSource(${idx})">${idx}</span>`;
-            });
-
-            // Generar Tarjetas de Fuentes
-            let sourcesHtml = '';
+            // 4. Si hay fuentes (Solo RAG Standard), añadir Badges interactivos
             if (lastChatSources.length > 0) {
-                sourcesHtml = '<div class="mt-3 pt-2 border-top"><small class="text-muted fw-bold text-uppercase">FUENTES:</small>';
+                htmlContent = htmlContent.replace(/\[(\d+)\]/g, (match, idx) => {
+                    return `<span class="badge bg-primary citation-badge" onclick="visualizeSource(${idx})">${idx}</span>`;
+                });
+                
+                let sourcesHtml = '<div class="mt-3 pt-2 border-top"><small class="text-muted fw-bold text-uppercase">FUENTES:</small>';
                 sourcesHtml += lastChatSources.map(s => `
                     <div class="source-card" onclick="visualizeSource(${s.index})">
                         <div class="d-flex justify-content-between mb-1">
@@ -136,12 +272,15 @@
                     </div>
                 `).join('');
                 sourcesHtml += '</div>';
+                
+                chatArea.innerHTML += `<div class="msg-bubble msg-ai animate__animated animate__fadeIn"><div>${htmlContent}</div>${sourcesHtml}</div>`;
+            } else {
+                // Respuesta de Agente (Texto puro parseado)
+                chatArea.innerHTML += `<div class="msg-bubble msg-ai animate__animated animate__fadeIn"><div>${htmlContent}</div></div>`;
             }
 
-            chatArea.innerHTML += `<div class="msg-bubble msg-ai animate__animated animate__fadeIn"><div>${htmlContent}</div>${sourcesHtml}</div>`;
-
         } catch(e) { 
-            document.getElementById(loaderId)?.remove();
+            const l = document.getElementById(loaderId); if(l) l.remove();
             chatArea.innerHTML += `<div class="alert alert-danger small p-2">Error: ${e.message}</div>`; 
         }
         chatArea.scrollTop = chatArea.scrollHeight;
@@ -152,7 +291,7 @@
         if(!source) return alert("Fuente no encontrada");
         
         const ids = source.concepts.filter(id => allNodesData.get(id));
-        if(!ids.length) return alert("Conceptos no visibles en el grafo actual");
+        if(!ids.length) return alert("Los conceptos de esta fuente no están visibles en el grafo actual.");
 
         network.unselectAll();
         network.selectNodes(ids);
@@ -160,9 +299,9 @@
         if(ids.length === 1) showDetails(ids[0]);
     }
 
-    // ---------------------------------------------------------
+    // =========================================================
     // 3. ADMIN: USUARIOS
-    // ---------------------------------------------------------
+    // =========================================================
     async function loadUsers() {
         const list = document.getElementById('userList');
         if(!list) return;
@@ -204,9 +343,82 @@
         }
     }
 
-    // ---------------------------------------------------------
-    // 4. UTILS & INGEST
-    // ---------------------------------------------------------
+    // =========================================================
+    // 4. DATOS: AGENTES Y HERRAMIENTAS (Pestaña Ingesta)
+    // =========================================================
+    async function loadAgentsAndTools() {
+        const agentsDiv = document.getElementById('agents-list');
+        const toolsDiv = document.getElementById('tools-list');
+        if(!agentsDiv || !toolsDiv) return;
+
+        console.log("🚀 Iniciando carga de capacidades cognitivas...");
+
+        try {
+            // Cargar Agentes
+            const resAgents = await fetch('/api/agents');
+            const agents = resAgents.ok ? await resAgents.json() : [];
+
+            if (agents.length === 0) {
+                agentsDiv.innerHTML = '<div class="text-muted small text-center py-3 bg-light rounded border border-dashed">No hay agentes configurados.</div>';
+            } else {
+                agentsDiv.innerHTML = agents.map(a => `
+                    <div class="card border mb-1 shadow-sm agent-card">
+                        <div class="card-body p-2 d-flex align-items-center gap-3">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width:40px; height:40px; min-width:40px;">
+                                <i class="fa-solid fa-user-doctor"></i>
+                            </div>
+                            <div class="flex-grow-1" style="min-width:0;">
+                                <div class="d-flex justify-content-between">
+                                    <span class="fw-bold text-dark text-truncate">${a.name}</span>
+                                    <span class="badge bg-light text-dark border text-xs">${a.model || 'Auto'}</span>
+                                </div>
+                                <div class="text-muted text-xs text-truncate">${a.description}</div>
+                                <div class="mt-1">
+                                    ${a.tools.map(t => `<span class="badge bg-secondary bg-opacity-25 text-dark border me-1" style="font-size:0.6rem">${t}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Cargar Herramientas
+            const resTools = await fetch('/api/tools');
+            const tools = resTools.ok ? await resTools.json() : [];
+
+            if (tools.length === 0) {
+                toolsDiv.innerHTML = '<div class="text-muted small text-center py-3 bg-light rounded border border-dashed">No hay herramientas disponibles.</div>';
+            } else {
+                toolsDiv.innerHTML = tools.map(t => {
+                    let icon = 'fa-hammer';
+                    let color = 'text-secondary';
+                    let typeLabel = 'GENERIC';
+                    
+                    if (t.type === 'http') { icon = 'fa-globe'; color = 'text-info'; typeLabel = 'HTTP API'; }
+                    if (t.type === 'cypher') { icon = 'fa-project-diagram'; color = 'text-success'; typeLabel = 'GRAPH DB'; }
+                    
+                    return `
+                    <div class="d-flex align-items-start gap-2 p-2 border rounded bg-light mb-1">
+                        <div class="mt-1 ${color}"><i class="fa-solid ${icon}"></i></div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-sm">${t.name}</span>
+                                <span class="badge bg-white border text-muted text-xs">${typeLabel}</span>
+                            </div>
+                            <div class="text-muted text-xs" style="font-size: 0.75rem; line-height: 1.2;">${t.description}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        } catch(e) {
+            console.error(e);
+            agentsDiv.innerHTML = `<div class="text-danger small">Error cargando configuración: ${e.message}</div>`;
+        }
+    }
+
+    // =========================================================
+    // 5. INGESTA DE DOCUMENTOS
+    // =========================================================
     function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
     function handleEnter(e) { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }}
     function exportCanvasImage() { 

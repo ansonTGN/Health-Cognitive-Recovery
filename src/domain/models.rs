@@ -180,3 +180,93 @@ pub enum ExportFormat {
 pub struct ExportParams {
     pub format: Option<ExportFormat>,
 }
+
+// --- 7. AGENTES Y HERRAMIENTAS (NUEVO) ---
+
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+pub struct AgentConfig {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub system_prompt: String,
+    pub model: Option<String>, // Override del modelo global si se desea
+    pub tools: Vec<String>,    // IDs de las herramientas que puede usar
+}
+
+// Adaptado de MCPixy
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
+pub enum ToolType {
+    #[serde(rename = "http")]
+    Http(HttpToolConfig),
+    #[serde(rename = "cli")]
+    Cli(CliToolConfig),
+    #[serde(rename = "cypher")] // Nueva herramienta nativa para tu grafo
+    Cypher(CypherToolConfig),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolDefinition {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    #[serde(flatten)]
+    pub implementation: ToolType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct HttpToolConfig {
+    pub method: String,
+    pub url: String,
+    pub headers: Option<std::collections::HashMap<String, String>>,
+    pub body_template: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CliToolConfig {
+    pub command: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CypherToolConfig {
+    // No necesita config extra, usará el pool de Neo4j existente
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AgentChatRequest {
+    pub agent_id: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AgentChatResponse {
+    pub response: String,
+    pub used_tools: Vec<String>,
+}
+
+// --- 8. MEMORIA (NUEVO) ---
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum MessageRole {
+    User,
+    Assistant,
+    System,
+}
+
+impl ToString for MessageRole {
+    fn to_string(&self) -> String {
+        match self {
+            MessageRole::User => "user".to_string(),
+            MessageRole::Assistant => "assistant".to_string(),
+            MessageRole::System => "system".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChatHistoryMessage {
+    pub role: MessageRole,
+    pub content: String,
+    pub timestamp: String,
+}

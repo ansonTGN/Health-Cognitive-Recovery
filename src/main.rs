@@ -38,6 +38,7 @@ use crate::interface::handlers::{
     export,
     users, // <--- IMPORTADO
 };
+use crate::interface::handlers::agents;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -146,6 +147,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/chat", post(chat::chat_handler))
         .route("/api/export", get(export::export_knowledge_graph))
         .route("/api/reasoning/run", post(reasoning::run_reasoning))
+        .route("/api/agents", get(agents::list_agents))
+        .route("/api/agents/chat", post(agents::chat_agent))
         .route_layer(middleware::from_fn_with_state(
             app_state.clone(),
             crate::interface::middleware::auth_middleware,
@@ -159,6 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // NUEVAS RUTAS 👇
         .route("/api/admin/users", get(users::list_users).post(users::create_user))
         .route("/api/admin/users/:username", axum::routing::delete(users::delete_user))
+        .route("/api/tools", get(agents::list_tools)) // <--- NUEVA RUTA
         .route_layer(middleware::from_fn_with_state(
             app_state.clone(),
             crate::interface::middleware::require_admin,
