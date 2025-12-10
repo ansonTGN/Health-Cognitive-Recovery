@@ -19,6 +19,8 @@ RUN cargo build --release
 COPY src ./src
 # IMPORTANTE: Copiamos los templates para que estén disponibles si se chequean en build time
 COPY templates ./templates 
+# IMPORTANTE: Copiamos la configuración de agentes/herramientas (YAMLs)
+COPY config ./config 
 
 # Actualizamos la fecha del archivo main.rs para forzar recompilación del código propio
 RUN touch src/main.rs
@@ -43,9 +45,10 @@ USER appuser
 # Copiar el binario desde la etapa builder
 COPY --from=builder /app/target/release/graph-rag-backend /app/server
 
-# IMPORTANTE: Copiar la carpeta de plantillas a la imagen final
-# El código Rust busca "templates/**/*.html", así que debe existir en /app/templates
+# IMPORTANTE: Copiar las carpetas de recursos a la imagen final
+# El código Rust busca "./config" y "./templates" en el directorio de ejecución (/app)
 COPY --from=builder /app/templates ./templates
+COPY --from=builder /app/config ./config 
 
 # Configuración de entorno
 ENV RUST_LOG=info
