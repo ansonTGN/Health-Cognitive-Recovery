@@ -9,6 +9,7 @@ pub struct AdminConfigPayload {
     pub force_reset: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, ToSchema)]
 pub struct IngestionResponse {
     pub id: String,

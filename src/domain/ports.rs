@@ -50,4 +50,8 @@ pub trait AIService: Send + Sync {
     fn update_config(&mut self, config: AIConfig) -> Result<(), AppError>;
     fn get_config(&self) -> AIConfig;
     async fn generate_inference(&self, prompt: &str) -> Result<InferenceResult, AppError>;
+    // NUEVO: Capacidad de ver (Vision)
+    async fn describe_image(&self, image_bytes: &[u8], mime_type: &str) -> Result<String, AppError>;
+    // NUEVO: Capacidad de oír (Whisper)
+    async fn transcribe_audio(&self, audio_bytes: &[u8], filename: &str) -> Result<String, AppError>;
 }

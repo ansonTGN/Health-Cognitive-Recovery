@@ -10,6 +10,8 @@ use crate::domain::{
     ports::AIService, 
     errors::AppError
 };
+use base64::{Engine as _, engine::general_purpose}; // Importar Base64
+
 
 pub struct RigAIService {
     config: AIConfig,
@@ -55,6 +57,8 @@ impl AIService for RigAIService {
     fn get_config(&self) -> AIConfig {
         self.config.clone()
     }
+
+
 
     async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, AppError> {
         if text.trim().is_empty() {
@@ -148,4 +152,78 @@ impl AIService for RigAIService {
             
         Ok(result)
     }
+
+    async fn describe_image(&self, image_bytes: &[u8], mime_type: &str) -> Result<String, AppError> {
+        let api_key = self.config.api_key.expose_secret();
+        let base64_image = general_purpose::STANDARD.encode(image_bytes);
+        let data_url = format!("data:{};base64,{}", mime_type, base64_image);
+
+        let prompt = r#"
+            Analiza esta imagen clínica/social. 
+            - Si es texto manuscrito, transcríbelo íntegramente.
+            - Si es un dibujo (arteterapia), describe los elementos emocionales y simbólicos.
+            - Si es un gráfico médico, extrae los valores clave.
+            NO des opiniones médicas, solo describe los datos objetivos y el contenido.
+        "#;
+
+        let payload = json!({
+            "model": "gpt-4o", // Modelo con capacidades de visión
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        { "type": "text", "text": prompt },
+                        { "type": "image_url", "image_url": { "url": data_url } }
+                    ]
+                }
+            ],
+            "max_tokens": 1000
+        });
+
+        let response = self.http_client.post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| AppError::AIError(format!("Vision Request Failed: {}", e)))?;
+
+        let body: Value = response.json().await.map_err(|e| AppError::ParseError(e.to_string()))?;
+        
+        let description = body["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or(AppError::AIError("No content in Vision response".into()))?
+            .to_string();
+
+        Ok(description)
+    }
+
+    async fn transcribe_audio(&self, audio_bytes: &[u8], filename: &str) -> Result<String, AppError> {
+        let api_key = self.config.api_key.expose_secret();
+        
+        // Crear Multipart para Whisper
+        let part = reqwest::multipart::Part::bytes(audio_bytes.to_vec())
+            .file_name(filename.to_string()); // Whisper necesita un nombre de archivo para deducir formato
+
+        let form = reqwest::multipart::Form::new()
+            .part("file", part)
+            .text("model", "whisper-1")
+            .text("language", "es"); // Forzar español o dejar auto
+
+        let response = self.http_client.post("https://api.openai.com/v1/audio/transcriptions")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| AppError::AIError(format!("Whisper Request Failed: {}", e)))?;
+
+        let body: Value = response.json().await.map_err(|e| AppError::ParseError(e.to_string()))?;
+        
+        let text = body["text"]
+            .as_str()
+            .ok_or(AppError::AIError("No text in Whisper response".into()))?
+            .to_string();
+
+        Ok(text)
+    }
+
 }

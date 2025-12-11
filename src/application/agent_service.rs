@@ -77,7 +77,7 @@ impl AgentService {
         if !context_docs.is_empty() {
             info!("✅ [RAG] {} fragmentos encontrados.", context_docs.len());
             context_str.push_str("\n\n### CONTEXTO (BASE DE DATOS):\n");
-            for (i, doc) in context_docs.iter().enumerate() {
+            for (_i, doc) in context_docs.iter().enumerate() {
                 context_str.push_str(&format!("- \"{}\"\n", doc.content.trim()));
             }
             context_str.push_str("---\n");

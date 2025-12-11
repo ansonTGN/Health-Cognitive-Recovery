@@ -1,6 +1,5 @@
 pub mod ai;
 pub mod persistence;
-// Reemplazamos parsing por transmutation o los mantenemos si prefieres
-pub mod transmutation;
-pub mod parsing;
+pub mod transmutation; // <--- ESTA DEBE ESTAR ACTIVA
+// pub mod parsing;    <--- BORRA O COMENTA ESTA LÍNEA
 pub mod tools;

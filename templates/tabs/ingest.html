@@ -25,13 +25,21 @@
             <div class="card shadow-sm border-0 mb-4 bg-white">
                 <div class="card-body">
                     <label class="small fw-bold text-muted mb-2">Texto Directo</label>
-                    <textarea id="ingestContent" class="form-control mb-3 bg-light" rows="4" placeholder="Pegar notas clínicas, informes..."></textarea>
-                    
-                    <label class="small fw-bold text-muted mb-2">O subir archivo (PDF, DOCX, TXT)</label>
-                    <input type="file" id="ingestFile" class="form-control mb-3">
-                    
+                    <textarea id="ingestContent" class="form-control mb-3 bg-light" rows="4" placeholder="Pegar notas clínicas..."></textarea>
+    
+                    <label class="small fw-bold text-muted mb-2">
+                        <i class="fa-solid fa-photo-film me-1 text-primary"></i> 
+                        Subir Archivo Multimodal
+                    </label>
+                    <div class="input-group mb-3">
+                        <input type="file" id="ingestFile" class="form-control" accept=".pdf,.docx,.txt,.csv,.jpg,.jpeg,.png,.mp3,.wav,.m4a">
+                    </div>
+                    <div class="form-text mb-3 text-xs">
+                        Soporta: <strong>Docs</strong> (PDF, DOCX), <strong>Imágenes</strong> (Notas manuscritas, Dibujos) y <strong>Audio</strong> (Grabaciones de voz).
+                    </div>
+    
                     <button onclick="startIngestion()" class="btn btn-dark w-100 fw-bold">
-                        <i class="fa-solid fa-play me-2"></i>Procesar Información
+                        <i class="fa-solid fa-brain me-2"></i>Procesar Información
                     </button>
                 </div>
             </div>
